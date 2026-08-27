@@ -1,0 +1,6 @@
+{
+  "name": "Sistem Kasir & Penjualan",
+  "description": "Aplikasi kasir (POS) modern multi-toko dengan buku kas & shift (deteksi modal awal, kas keluar/pengeluaran operasional, rincian hasil penjualan per hari), QRIS Dinamis DANA otomatis nominal transaksi, barcode scanner, cetak struk Z-Report, dan laporan analitik.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
