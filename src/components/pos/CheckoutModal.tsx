@@ -323,19 +323,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   return (
     <div
       id="checkout-modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4 overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isProcessing) onClose();
       }}
     >
       <div
         id="checkout-modal-card"
-        className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150 my-6"
+        className="relative bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl max-w-2xl w-full h-[92vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
       >
+        {/* Mobile Drag Indicator Bar */}
+        <div className="sm:hidden w-12 h-1 bg-slate-300 rounded-full mx-auto mt-2.5 mb-1" />
+
         {/* Header */}
-        <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
+        <div className="bg-[#0B1320] text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-indigo-400" />
+            <Receipt className="w-5 h-5 text-[#00A876]" />
             <div>
               <h3 className="font-bold text-sm sm:text-base">Pembayaran &amp; Selesai Transaksi</h3>
               <p className="text-[11px] text-slate-400">
@@ -347,20 +350,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             id="close-checkout-modal-btn"
             onClick={onClose}
             disabled={isProcessing}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition disabled:opacity-50 cursor-pointer"
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition disabled:opacity-50 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 p-4 sm:p-6 space-y-4 overflow-y-auto">
           {/* Summary Banner */}
-          <div className="bg-slate-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md border border-slate-800">
+          <div className="bg-[#0B1320] rounded-2xl p-4 sm:p-5 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md border border-slate-800">
             <div>
               <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
                 Total Tagihan Pembayaran
               </p>
-              <p className="text-2xl sm:text-3xl font-black text-indigo-400 tracking-tight mt-0.5">
+              <p className="text-2xl sm:text-3xl font-black text-[#00A876] tracking-tight mt-0.5">
                 {formatRupiah(finalTotal)}
               </p>
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-1">
@@ -372,17 +376,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 )}
               </div>
             </div>
-            <div className="bg-slate-800 px-3.5 py-2 rounded-xl text-right text-xs self-start sm:self-center border border-slate-700">
+            <div className="bg-slate-900 px-3.5 py-2 rounded-xl text-right text-xs self-start sm:self-center border border-slate-800">
               <span className="text-slate-400 block text-[11px]">Kasir Bertugas</span>
               <span className="font-bold text-white text-sm">{activeCashier}</span>
             </div>
           </div>
 
           {/* Customer Selection & Loyalty Points */}
-          <div className="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-3">
+          <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-100 space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <User className="w-4 h-4 text-indigo-600" />
+                <User className="w-4 h-4 text-[#00A876]" />
                 Pilih Pelanggan / Member (Loyalitas)
               </label>
               {selectedCustomer && (
@@ -397,7 +401,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <select
                   value={selectedCustomerId}
                   onChange={(e) => setSelectedCustomerId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#00A876] bg-white"
                 >
                   <option value="">-- Pelanggan Umum (Tanpa Member) --</option>
                   {customers.map((c) => (
@@ -415,11 +419,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
                     placeholder="Nama Tamu (Opsional)"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-[#00A876] bg-white"
                   />
                 </div>
               ) : (
-                <div className="bg-white p-2.5 rounded-xl border border-indigo-200 flex items-center justify-between text-xs">
+                <div className="bg-white p-2.5 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
                   <div>
                     <span className="text-slate-500 block text-[10px]">Saldo Poin Member:</span>
                     <span className="font-black text-amber-600 text-sm flex items-center gap-1">
@@ -439,13 +443,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {/* Loyalty Points Redemption Toggle */}
             {selectedCustomer && selectedCustomer.points > 0 && (
-              <div className="pt-2 border-t border-indigo-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-950">
+              <div className="pt-2 border-t border-emerald-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
                   <input
                     type="checkbox"
                     checked={usePoints}
                     onChange={(e) => setUsePoints(e.target.checked)}
-                    className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                    className="rounded text-[#00A876] focus:ring-[#00A876] w-4 h-4"
                   />
                   <span>Tukarkan Poin Loyalitas untuk Diskon Belanja</span>
                 </label>
@@ -530,13 +534,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   }}
                   className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
                     paymentMethod === 'cash'
-                      ? 'border-2 border-indigo-600 bg-indigo-50 text-indigo-950 font-bold shadow-xs'
+                      ? 'border-2 border-[#00A876] bg-emerald-50 text-emerald-950 font-bold shadow-xs'
                       : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                   }`}
                 >
                   <Banknote
                     className={`w-5 h-5 mb-1 ${
-                      paymentMethod === 'cash' ? 'text-indigo-600' : 'text-slate-500'
+                      paymentMethod === 'cash' ? 'text-[#00A876]' : 'text-slate-500'
                     }`}
                   />
                   <span className="text-xs">Tunai (Cash)</span>
@@ -675,7 +679,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     const clean = e.target.value.replace(/\D/g, '');
                     setCashInput(clean);
                   }}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-300 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full px-4 py-2 rounded-xl border border-slate-300 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00A876] bg-white"
                   placeholder="0"
                   autoFocus
                 />
@@ -688,7 +692,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <button
                     type="button"
                     onClick={handleExactCash}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 text-xs font-bold transition cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-bold transition cursor-pointer"
                   >
                     Uang Pas ({formatRupiah(finalTotal)})
                   </button>
@@ -697,7 +701,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       key={amt}
                       type="button"
                       onClick={() => handleQuickCash(amt)}
-                      className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700 text-xs font-semibold transition cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-[#00A876] hover:bg-emerald-50 text-slate-700 text-xs font-semibold transition cursor-pointer"
                     >
                       {formatRupiah(amt)}
                     </button>
@@ -1016,13 +1020,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
+          </div>
+
+          {/* Action Buttons - Sticky at Bottom on Mobile */}
+          <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between sm:justify-end gap-3 shrink-0">
             <button
               type="button"
               onClick={onClose}
               disabled={isProcessing}
-              className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 transition cursor-pointer"
             >
               Batal
             </button>
@@ -1030,17 +1036,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               type="submit"
               id="confirm-payment-btn"
               disabled={isProcessing || isCashInsufficient}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-200 transition disabled:opacity-50 active:scale-95 cursor-pointer"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#00A876] hover:bg-[#009267] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#00A876]/25 transition disabled:opacity-50 active:scale-95 cursor-pointer"
             >
               {isProcessing ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Memproses Transaksi...</span>
+                  <span>Memproses...</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Selesaikan Pembayaran ({formatRupiah(finalTotal)})</span>
+                  <span>Bayar {formatRupiah(finalTotal)}</span>
                 </>
               )}
             </button>

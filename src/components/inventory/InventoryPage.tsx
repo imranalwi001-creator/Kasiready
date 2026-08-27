@@ -52,6 +52,15 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>('all');
   const [stockStatusFilter, setStockStatusFilter] = useState<'all' | 'low' | 'out' | 'safe'>('all');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [isDataLoading, setIsDataLoading] = useState(false);
+
+  const handleFilterChange = (callback: () => void) => {
+    setIsDataLoading(true);
+    callback();
+    setTimeout(() => {
+      setIsDataLoading(false);
+    }, 250);
+  };
 
   // Modals state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -275,7 +284,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari berdasarkan nama produk atau kode SKU..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00A876] focus:bg-white"
             />
           </div>
 
@@ -286,8 +295,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
               <Building2 className="w-4 h-4 text-slate-400" />
               <select
                 value={selectedStoreFilter}
-                onChange={(e) => setSelectedStoreFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                onChange={(e) => handleFilterChange(() => setSelectedStoreFilter(e.target.value))}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#00A876]"
               >
                 <option value="all">Semua Cabang Toko</option>
                 {stores.map((s) => (
@@ -301,8 +310,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
             {/* Category Dropdown */}
             <select
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(e) => handleFilterChange(() => setSelectedCategory(e.target.value))}
+              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#00A876]"
             >
               <option value="all">Semua Kategori</option>
               {categories.map((cat) => (
@@ -351,10 +360,10 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setStockStatusFilter(tab.id as any)}
+              onClick={() => handleFilterChange(() => setStockStatusFilter(tab.id as any))}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 stockStatusFilter === tab.id
-                  ? 'bg-slate-900 text-white'
+                  ? 'bg-[#0B1320] text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -364,8 +373,51 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
         </div>
       </div>
 
-      {/* Product Content: Table or Grid */}
-      {filteredProducts.length === 0 ? (
+      {/* Product Content: Skeleton Loading, Empty State, Table or Grid */}
+      {isDataLoading ? (
+        viewMode === 'table' ? (
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden p-6 space-y-4 animate-pulse">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="h-4 bg-slate-200 rounded-md w-40" />
+              <div className="h-4 bg-slate-100 rounded-md w-28" />
+            </div>
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0 gap-4">
+                  <div className="flex items-center gap-3 w-1/3">
+                    <div className="w-10 h-10 bg-slate-200 rounded-lg shrink-0" />
+                    <div className="space-y-1.5 w-full">
+                      <div className="h-3.5 bg-slate-200 rounded w-3/4" />
+                      <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                    </div>
+                  </div>
+                  <div className="h-3 bg-slate-150 bg-slate-100 rounded w-24 hidden sm:block" />
+                  <div className="h-6 bg-slate-100 rounded-full w-20 hidden md:block" />
+                  <div className="h-3.5 bg-slate-200 rounded w-20" />
+                  <div className="h-6 bg-slate-100 rounded-full w-16" />
+                  <div className="w-16 h-7 bg-slate-100 rounded-lg shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 animate-pulse">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="bg-white rounded-2xl border border-slate-200 p-3.5 space-y-3 shadow-2xs">
+                <div className="h-28 w-full bg-slate-200 rounded-xl" />
+                <div className="space-y-1.5">
+                  <div className="h-3.5 bg-slate-200 rounded w-3/4" />
+                  <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div className="h-4 bg-slate-200 rounded w-1/3" />
+                  <div className="h-6 bg-slate-100 rounded w-1/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : filteredProducts.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-3">
           <Package className="w-12 h-12 text-slate-300 mx-auto" />
           <h4 className="font-bold text-slate-700 text-sm">Tidak Ada Produk</h4>

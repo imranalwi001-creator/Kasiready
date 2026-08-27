@@ -260,7 +260,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-      return stored ? JSON.parse(stored) : INITIAL_CATEGORIES;
+      if (stored) {
+        const parsed: Category[] = JSON.parse(stored);
+        const existingIds = new Set(parsed.map((c) => c.id));
+        const missing = INITIAL_CATEGORIES.filter((c) => !existingIds.has(c.id));
+        const updated = parsed.map((cat) => {
+          const def = INITIAL_CATEGORIES.find((c) => c.id === cat.id);
+          return def ? { ...cat, name: def.name, description: def.description, color: def.color, icon: def.icon } : cat;
+        });
+        return [...updated, ...missing];
+      }
+      return INITIAL_CATEGORIES;
     } catch {
       return INITIAL_CATEGORIES;
     }
@@ -269,7 +279,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-      return stored ? JSON.parse(stored) : INITIAL_PRODUCTS;
+      if (stored) {
+        const parsed: Product[] = JSON.parse(stored);
+        const existingIds = new Set(parsed.map((p) => p.id));
+        const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id));
+        const updated = parsed.map((prod) => {
+          const def = INITIAL_PRODUCTS.find((p) => p.id === prod.id);
+          return def ? { ...prod, categoryId: def.categoryId, sku: def.sku, image: prod.image || def.image, description: def.description } : prod;
+        });
+        return [...updated, ...missing];
+      }
+      return INITIAL_PRODUCTS;
     } catch {
       return INITIAL_PRODUCTS;
     }
@@ -474,10 +494,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!currentUser) return false;
     if (currentUser.role === 'super_admin') return true;
     if (currentUser.role === 'admin') {
-      return ['pos', 'inventory', 'customers', 'history', 'reports', 'cash-drawer', 'settings'].includes(tab);
+      return ['dashboard', 'pos', 'inventory', 'customers', 'history', 'reports', 'cash-drawer', 'settings'].includes(tab);
     }
     if (currentUser.role === 'kasir') {
-      return ['pos', 'customers', 'history', 'cash-drawer'].includes(tab);
+      return ['dashboard', 'pos', 'customers', 'history', 'cash-drawer'].includes(tab);
     }
     return false;
   };

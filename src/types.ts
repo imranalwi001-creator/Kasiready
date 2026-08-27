@@ -12,7 +12,15 @@ export type PaymentStatus = 'pending' | 'verifying' | 'completed' | 'failed' | '
 
 export type CustomerTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 
-export type TabType = 'pos' | 'cash-drawer' | 'inventory' | 'history' | 'reports' | 'settings';
+export type TabType =
+  | 'dashboard'
+  | 'pos'
+  | 'customers'
+  | 'inventory'
+  | 'history'
+  | 'reports'
+  | 'cash-drawer'
+  | 'settings';
 
 export type UserRole = 'super_admin' | 'admin' | 'kasir';
 

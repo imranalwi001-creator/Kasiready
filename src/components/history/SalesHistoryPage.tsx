@@ -26,6 +26,9 @@ import {
   Smartphone,
   Zap,
   Award,
+  TrendingUp,
+  RefreshCw,
+  ShoppingBag,
 } from 'lucide-react';
 
 export const SalesHistoryPage: React.FC = () => {
@@ -38,6 +41,60 @@ export const SalesHistoryPage: React.FC = () => {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(false);
+
+  // Trigger subtle loading animation on filter change for perceived responsiveness
+  const handleFilterChange = (callback: () => void) => {
+    setIsDataLoading(true);
+    callback();
+    setTimeout(() => {
+      setIsDataLoading(false);
+    }, 250);
+  };
+
+  const handleRefresh = () => {
+    setIsDataLoading(true);
+    setTimeout(() => {
+      setIsDataLoading(false);
+    }, 350);
+  };
+
+  // Persistent Daily Revenue & Transaction Counts for Today
+  const todayMetrics = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+    const todaySales = sales.filter((s) => {
+      const saleTime = new Date(s.date).getTime();
+      return saleTime >= startOfToday;
+    });
+
+    const completed = todaySales.filter((s) => s.status === 'completed');
+    const revenue = completed.reduce((sum, s) => sum + s.totalAmount, 0);
+    const count = completed.length;
+    const totalUnits = completed.reduce(
+      (sum, s) => sum + s.items.reduce((acc, i) => acc + i.quantity, 0),
+      0
+    );
+    const avgTicket = count > 0 ? Math.round(revenue / count) : 0;
+    const cashCount = completed.filter((s) => s.paymentMethod === 'cash').length;
+    const digitalCount = completed.filter((s) => s.paymentMethod !== 'cash').length;
+
+    return {
+      revenue,
+      count,
+      totalUnits,
+      avgTicket,
+      cashCount,
+      digitalCount,
+      dateString: now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+    };
+  }, [sales]);
 
   // Filter logic
   const filteredSales = useMemo(() => {
@@ -161,7 +218,7 @@ export const SalesHistoryPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Receipt className="w-6 h-6 text-indigo-600" />
+            <Receipt className="w-6 h-6 text-[#00A876]" />
             Riwayat Penjualan &amp; Transaksi Multi-Cabang
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
@@ -169,21 +226,101 @@ export const SalesHistoryPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          id="export-sales-csv-btn"
-          onClick={handleExportCSV}
-          className="self-start sm:self-center inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
-        >
-          <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
-          <span>Ekspor CSV</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition cursor-pointer"
+            title="Muat Ulang Data"
+          >
+            <RefreshCw className={`w-4 h-4 ${isDataLoading ? 'animate-spin text-[#00A876]' : ''}`} />
+          </button>
+
+          <button
+            id="export-sales-csv-btn"
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-[#00A876]" />
+            <span>Ekspor CSV</span>
+          </button>
+        </div>
       </div>
 
-      {/* Summary KPI Cards */}
+      {/* PERSISTENT DAILY SUMMARY CARD: Highlights total daily revenue and number of transactions */}
+      <div
+        id="persistent-daily-summary-card"
+        className="relative overflow-hidden bg-gradient-to-br from-[#0B1320] via-[#121E31] to-[#0B1320] rounded-2xl p-5 sm:p-6 text-white border border-slate-800 shadow-xl"
+      >
+        <div className="absolute -top-10 -right-10 w-64 h-64 bg-[#00A876]/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#00A876]/20 text-[#00A876] border border-[#00A876]/30 uppercase tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-[#00A876] animate-pulse" />
+                Live Daily Performance
+              </span>
+              <span className="text-xs text-slate-400 font-medium">
+                {todayMetrics.dateString}
+              </span>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Total Omset Penjualan Hari Ini
+              </p>
+              <div className="flex items-baseline gap-3 mt-0.5">
+                <span className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
+                  {formatRupiah(todayMetrics.revenue)}
+                </span>
+                <span className="text-xs font-bold text-[#00A876] bg-[#00A876]/20 px-2 py-0.5 rounded-md flex items-center gap-0.5">
+                  <TrendingUp className="w-3 h-3" />
+                  Hari Ini
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white/5 p-3.5 rounded-xl border border-white/10 backdrop-blur-xs">
+            <div className="border-r border-white/10 pr-2">
+              <span className="text-[11px] font-medium text-slate-400 block">Total Transaksi</span>
+              <p className="text-base sm:text-lg font-bold text-white mt-0.5 flex items-center gap-1.5">
+                <Receipt className="w-4 h-4 text-[#00A876]" />
+                {todayMetrics.count} <span className="text-xs font-normal text-slate-400">Order</span>
+              </p>
+            </div>
+
+            <div className="border-r border-white/10 pr-2">
+              <span className="text-[11px] font-medium text-slate-400 block">Unit Terjual</span>
+              <p className="text-base sm:text-lg font-bold text-white mt-0.5 flex items-center gap-1.5">
+                <ShoppingBag className="w-4 h-4 text-emerald-400" />
+                {todayMetrics.totalUnits} <span className="text-xs font-normal text-slate-400">Pcs</span>
+              </p>
+            </div>
+
+            <div className="border-r border-white/10 pr-2">
+              <span className="text-[11px] font-medium text-slate-400 block">Avg. Basket</span>
+              <p className="text-xs sm:text-sm font-bold text-white mt-0.5 truncate">
+                {formatRupiah(todayMetrics.avgTicket)}
+              </p>
+            </div>
+
+            <div>
+              <span className="text-[11px] font-medium text-slate-400 block">Metode Bayar</span>
+              <p className="text-[11px] font-semibold text-slate-300 mt-0.5">
+                <span className="text-[#00A876] font-bold">{todayMetrics.cashCount} Tunai</span> &bull; {todayMetrics.digitalCount} Digital
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary KPI Cards for Selected Filters */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-          <p className="text-xs text-slate-500 font-semibold">Total Omset Penjualan</p>
-          <p className="text-xl sm:text-2xl font-black text-indigo-700 mt-1">
+          <p className="text-xs text-slate-500 font-semibold">Omset Sesuai Filter</p>
+          <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
             {formatRupiah(totalRevenue)}
           </p>
           <p className="text-[11px] text-slate-400 mt-1">
@@ -192,7 +329,7 @@ export const SalesHistoryPage: React.FC = () => {
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-          <p className="text-xs text-slate-500 font-semibold">Volume Transaksi</p>
+          <p className="text-xs text-slate-500 font-semibold">Volume Transaksi Filter</p>
           <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
             {totalCount} Transaksi
           </p>
@@ -222,7 +359,7 @@ export const SalesHistoryPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nota, kasir, pelanggan, produk..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00A876] focus:bg-white"
             />
           </div>
 
@@ -230,8 +367,8 @@ export const SalesHistoryPage: React.FC = () => {
           <div className="sm:col-span-3">
             <select
               value={storeFilter}
-              onChange={(e) => setStoreFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(e) => handleFilterChange(() => setStoreFilter(e.target.value))}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#00A876]"
             >
               <option value="all">Semua Cabang Toko</option>
               {stores.map((s) => (
@@ -246,8 +383,8 @@ export const SalesHistoryPage: React.FC = () => {
           <div className="sm:col-span-2">
             <select
               value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value as any)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(e) => handleFilterChange(() => setDateFilter(e.target.value as any))}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#00A876]"
             >
               <option value="all">Semua Waktu</option>
               <option value="today">Hari Ini</option>
@@ -260,8 +397,8 @@ export const SalesHistoryPage: React.FC = () => {
           <div className="sm:col-span-3">
             <select
               value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(e) => handleFilterChange(() => setPaymentFilter(e.target.value))}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#00A876]"
             >
               <option value="all">Semua Metode Pembayaran</option>
               <option value="cash">Tunai (Cash)</option>
@@ -275,8 +412,31 @@ export const SalesHistoryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Transactions Table */}
-      {filteredSales.length === 0 ? (
+      {/* SKELETON LOADING OR TRANSACTIONS TABLE */}
+      {isDataLoading ? (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden p-6 space-y-4 animate-pulse">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="h-4 bg-slate-200 rounded-md w-48" />
+            <div className="h-4 bg-slate-100 rounded-md w-24" />
+          </div>
+          <div className="space-y-3.5">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0 gap-4">
+                <div className="space-y-1.5 w-1/4">
+                  <div className="h-3.5 bg-slate-200 rounded w-3/4" />
+                  <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                </div>
+                <div className="h-3 bg-slate-150 bg-slate-100 rounded w-20 hidden sm:block" />
+                <div className="h-3 bg-slate-200 rounded w-24 hidden md:block" />
+                <div className="h-3 bg-slate-100 rounded w-16" />
+                <div className="h-6 bg-slate-100 rounded-full w-20" />
+                <div className="h-4 bg-slate-200 rounded w-20" />
+                <div className="w-16 h-7 bg-slate-100 rounded-lg shrink-0" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : filteredSales.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-3">
           <Receipt className="w-12 h-12 text-slate-300 mx-auto" />
           <h4 className="font-bold text-slate-700 text-sm">Tidak Ada Transaksi</h4>
@@ -370,7 +530,7 @@ export const SalesHistoryPage: React.FC = () => {
                       </td>
 
                       {/* Total Amount */}
-                      <td className="py-3 px-4 text-right font-black text-indigo-900 text-xs sm:text-sm">
+                      <td className="py-3 px-4 text-right font-black text-slate-900 text-xs sm:text-sm">
                         {formatRupiah(sale.totalAmount)}
                       </td>
 
@@ -378,7 +538,7 @@ export const SalesHistoryPage: React.FC = () => {
                       <td className="py-3 px-4 text-center">
                         {sale.status === 'completed' ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <CheckCircle2 className="w-3 h-3 text-[#00A876]" />
                             Lunas
                           </span>
                         ) : (
@@ -401,7 +561,7 @@ export const SalesHistoryPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => handleOpenReceipt(sale)}
-                            className="p-1.5 rounded-lg text-indigo-700 hover:bg-indigo-50 transition cursor-pointer"
+                            className="p-1.5 rounded-lg text-[#00A876] hover:bg-emerald-50 transition cursor-pointer"
                             title="Cetak Ulang Struk"
                           >
                             <Printer className="w-4 h-4" />
