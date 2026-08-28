@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -18,9 +20,18 @@ html, body, #root {
   text-rendering: optimizeLegibility;
 }
 
+html.dark {
+  color-scheme: dark;
+}
+
 body {
-  @apply bg-slate-100 text-slate-900;
+  @apply bg-slate-100 text-slate-900 transition-colors duration-150;
   overscroll-behavior-y: none;
+}
+
+html.dark body {
+  background-color: #070D18;
+  color: #F1F5F9;
 }
 
 /* Ensure all interactive & text elements strictly inherit or use Plus Jakarta Sans (overriding mobile browser defaults) */

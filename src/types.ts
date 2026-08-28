@@ -6,9 +6,18 @@ export type PaymentMethod =
   | 'dana'
   | 'shopeepay'
   | 'debit'
-  | 'transfer';
+  | 'transfer'
+  | 'credit';
 
-export type PaymentStatus = 'pending' | 'verifying' | 'completed' | 'failed' | 'expired';
+export type PaymentStatus =
+  | 'pending'
+  | 'verifying'
+  | 'completed'
+  | 'failed'
+  | 'expired'
+  | 'unpaid'
+  | 'partial'
+  | 'jatuh_tempo';
 
 export type CustomerTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 
@@ -175,6 +184,8 @@ export interface PrinterConfig {
   printCashierName: boolean;
   printBarcode: boolean;
   printCustomerPoints: boolean;
+  printTaxDetails?: boolean;
+  printPaymentStatus?: boolean;
   bluetoothDeviceName?: string;
   customHeader?: string;
   customFooter?: string;
@@ -216,6 +227,7 @@ export interface Product {
   id: string;
   storeId: string; // toko_id
   sku: string;
+  barcode?: string;
   name: string;
   categoryId: string;
   price: number;
@@ -253,6 +265,9 @@ export interface Sale {
   paymentMethod: PaymentMethod;
   paymentStatus?: PaymentStatus;
   paymentGatewayRef?: string;
+  dueDate?: string; // ISO date or YYYY-MM-DD for credit / unpaid sales
+  debtRemaining?: number; // Sisa piutang/utang
+  paidOffDate?: string; // Tanggal pelunasan
   subtotal: number;
   discount: number;
   pointsDiscount?: number;
@@ -326,8 +341,13 @@ export interface StoreSettings {
   taxRate: number; // percentage, e.g. 11 for PPN
   enableTax: boolean;
   currency: string;
+  monthlySalesTarget?: number; // Target penjualan bulanan (nominal Rp)
   pointsRewardRatio: number; // Rp spent for 1 point, default: 10000
   pointsRedeemValue: number; // Rp value per 1 point, default: 100
+  logoType?: 'preset' | 'custom';
+  logoPreset?: 'averion_triangle' | 'diamond' | 'hexagon' | 'store' | 'crown' | 'sparkle' | 'box' | 'rocket';
+  logoUrl?: string; // Base64 data URI or image URL
+  themeMode?: 'light' | 'dark' | 'system';
   enabledPaymentMethods?: EnabledPaymentMethods;
   gateways: PaymentGatewayConfig;
   printer: PrinterConfig;

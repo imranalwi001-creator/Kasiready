@@ -30,7 +30,7 @@ import {
   INITIAL_CASH_SHIFTS,
   INITIAL_CASH_EXPENSES,
 } from '../data/initialData';
-import { generateInvoiceNumber } from '../utils/formatters';
+import { generateInvoiceNumber, formatRupiah } from '../utils/formatters';
 
 interface CheckoutPayload {
   paymentMethod: PaymentMethod;
@@ -69,6 +69,9 @@ interface StoreContextType {
   setActiveCashier: (name: string) => void;
   settings: StoreSettings;
   setSettings: (settings: StoreSettings) => void;
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => void;
+  toggleTheme: () => void;
 
   // Cash Drawer & Shift Management (Modal Awal, Pengeluaran, Kas Laci)
   cashShifts: CashShift[];
@@ -127,6 +130,7 @@ interface StoreContextType {
   stockLogs: StockLog[];
   processCheckout: (payload: CheckoutPayload) => Sale;
   refundSale: (saleId: string, reason?: string) => void;
+  settleDebtSale: (saleId: string, paidAmount: number, paymentMethod?: PaymentMethod, note?: string) => Sale | null;
 
   // Cart
   cart: CartItem[];
@@ -256,6 +260,41 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return INITIAL_SETTINGS;
     }
   });
+
+  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
+    try {
+      const stored = localStorage.getItem('averion_pos_theme');
+      if (stored === 'dark' || stored === 'light') return stored;
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
+  const setTheme = (newTheme: 'light' | 'dark') => {
+    setThemeState(newTheme);
+    try {
+      localStorage.setItem('averion_pos_theme', newTheme);
+    } catch {
+      // ignore
+    }
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
+
+  useEffect(() => {
+    try {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    } catch {
+      // ignore
+    }
+  }, [theme]);
 
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
@@ -959,6 +998,45 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  const settleDebtSale = (
+    saleId: string,
+    paidAmount: number,
+    paymentMethod: PaymentMethod = 'cash',
+    note?: string
+  ): Sale | null => {
+    let updatedSale: Sale | null = null;
+    const now = new Date().toISOString();
+
+    setSales((prev) =>
+      prev.map((s) => {
+        if (s.id === saleId) {
+          const currentPaid = s.paidAmount || 0;
+          const newPaid = Math.min(s.totalAmount, currentPaid + paidAmount);
+          const newDebtRemaining = Math.max(0, s.totalAmount - newPaid);
+          const isFullyPaid = newDebtRemaining <= 0;
+
+          updatedSale = {
+            ...s,
+            paidAmount: newPaid,
+            debtRemaining: newDebtRemaining,
+            paymentStatus: isFullyPaid ? 'completed' : 'partial',
+            paymentMethod: isFullyPaid ? paymentMethod : s.paymentMethod,
+            paidOffDate: isFullyPaid ? now : s.paidOffDate,
+            notes: note
+              ? s.notes
+                ? `${s.notes} | Pelunasan ${formatRupiah(paidAmount)}: ${note}`
+                : `Pelunasan ${formatRupiah(paidAmount)}: ${note}`
+              : s.notes,
+          };
+          return updatedSale;
+        }
+        return s;
+      })
+    );
+
+    return updatedSale;
+  };
+
   // Product Operations
   const addProduct = (
     productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>
@@ -1409,12 +1487,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         stockLogs,
         processCheckout,
         refundSale,
+        settleDebtSale,
         cart,
         addToCart,
         updateCartQty,
         removeFromCart,
         clearCart,
         cartTotals,
+        theme,
+        setTheme,
+        toggleTheme,
         resetToDefault,
         exportDatabaseJSON,
         importDatabaseJSON,

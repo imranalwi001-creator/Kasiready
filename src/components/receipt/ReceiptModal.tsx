@@ -194,10 +194,35 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             className="bg-white p-5 sm:p-6 rounded-2xl shadow-xs border border-slate-200 font-mono text-xs text-slate-800 space-y-3"
             style={{ width: '100%', maxWidth: '340px', margin: '0 auto' }}
           >
-            {/* Store Header */}
+            {/* Store Header & Logo */}
             <div className="text-center pb-3 border-b border-dashed border-slate-300">
+              {/* Optional Store Logo */}
+              {settings.printer?.printStoreLogo !== false && (
+                <div className="flex justify-center mb-2">
+                  {settings.logoType === 'custom' && settings.logoUrl ? (
+                    <img
+                      src={settings.logoUrl}
+                      alt={settings.name}
+                      className="h-10 w-auto max-w-[120px] object-contain mx-auto"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-sm mx-auto shadow-xs">
+                      {settings.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Custom Header if present */}
+              {settings.printer?.customHeader && (
+                <p className="text-[11px] font-bold text-slate-800 uppercase tracking-wide mb-1">
+                  {settings.printer.customHeader}
+                </p>
+              )}
+
               <h2 className="font-bold text-sm tracking-tight text-slate-900">{settings.name}</h2>
-              <p className="text-[10px] text-slate-500">{settings.tagline}</p>
+              {settings.tagline && <p className="text-[10px] text-slate-500">{settings.tagline}</p>}
               <p className="text-[10px] text-slate-500">{settings.address}</p>
               <p className="text-[10px] text-slate-500">Telp: {settings.phone}</p>
             </div>
@@ -212,14 +237,22 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 <span className="text-slate-500">Waktu</span>
                 <span>{formatIndonesianDate(sale.date)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Kasir</span>
-                <span>{sale.cashierName}</span>
-              </div>
+              {settings.printer?.printCashierName !== false && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Kasir</span>
+                  <span>{sale.cashierName}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-slate-500">Pelanggan</span>
                 <span>{sale.customerName || 'Umum'}</span>
               </div>
+              {sale.dueDate && (
+                <div className="flex justify-between text-amber-700 font-semibold">
+                  <span>Jatuh Tempo</span>
+                  <span>{formatIndonesianDate(sale.dueDate)}</span>
+                </div>
+              )}
             </div>
 
             {/* Items List */}
@@ -248,12 +281,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 <span>{formatRupiah(sale.subtotal)}</span>
               </div>
               {sale.discount > 0 && (
-                <div className="flex justify-between text-indigo-700">
+                <div className="flex justify-between text-emerald-700">
                   <span>Diskon</span>
                   <span>-{formatRupiah(sale.discount)}</span>
                 </div>
               )}
-              {sale.tax > 0 && (
+              {settings.printer?.printTaxDetails !== false && sale.tax > 0 && (
                 <div className="flex justify-between text-slate-600">
                   <span>Pajak (PPN)</span>
                   <span>+{formatRupiah(sale.tax)}</span>
@@ -261,7 +294,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               )}
               <div className="flex justify-between font-black text-sm text-slate-900 pt-1 border-t border-slate-200">
                 <span>TOTAL</span>
-                <span className="text-indigo-700">{formatRupiah(sale.totalAmount)}</span>
+                <span className="text-[#00A876]">{formatRupiah(sale.totalAmount)}</span>
               </div>
             </div>
 
@@ -275,16 +308,63 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 <span className="text-slate-500">Bayar</span>
                 <span>{formatRupiah(sale.paidAmount)}</span>
               </div>
-              <div className="flex justify-between font-semibold">
-                <span className="text-slate-500">Kembalian</span>
-                <span className="text-slate-900">{formatRupiah(sale.changeAmount)}</span>
-              </div>
+              {sale.changeAmount > 0 && (
+                <div className="flex justify-between font-semibold">
+                  <span className="text-slate-500">Kembalian</span>
+                  <span className="text-slate-900">{formatRupiah(sale.changeAmount)}</span>
+                </div>
+              )}
+              {sale.debtRemaining && sale.debtRemaining > 0 ? (
+                <div className="flex justify-between font-bold text-rose-600">
+                  <span>Sisa Piutang</span>
+                  <span>{formatRupiah(sale.debtRemaining)}</span>
+                </div>
+              ) : null}
             </div>
+
+            {/* Loyalty Points Section (Controllable via Settings) */}
+            {settings.printer?.printCustomerPoints !== false && (sale.pointsEarned || sale.pointsRedeemed) ? (
+              <div className="space-y-1 text-[10px] pb-3 border-b border-dashed border-slate-300 text-teal-800 bg-teal-50/70 p-2 rounded-lg">
+                <div className="font-bold flex items-center justify-between">
+                  <span>Poin Loyalitas Member</span>
+                  <span>+{sale.pointsEarned || 0} Poin</span>
+                </div>
+                {sale.pointsRedeemed && sale.pointsRedeemed > 0 ? (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Poin Dipakai</span>
+                    <span>-{sale.pointsRedeemed} Poin ({formatRupiah(sale.pointsDiscount || 0)})</span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             {/* Footer */}
             <div className="text-center pt-2 space-y-1 text-[10px] text-slate-500">
-              <p>{settings.receiptFooter}</p>
-              <p className="font-bold tracking-widest text-slate-700 pt-1">*** LUNAS ***</p>
+              <p>{settings.receiptFooter || settings.printer?.customFooter || 'Terima kasih atas kunjungan Anda!'}</p>
+              {settings.printer?.customFooter && settings.printer?.customFooter !== settings.receiptFooter && (
+                <p className="text-[9px] text-slate-400 italic">{settings.printer.customFooter}</p>
+              )}
+
+              {/* Barcode representation */}
+              {settings.printer?.printBarcode !== false && (
+                <div className="pt-2 text-center">
+                  <div className="font-mono text-[9px] tracking-widest text-slate-700 bg-slate-100 py-1 px-2 rounded-md inline-block">
+                    ||| | |||| | || ||||| | ||| ||
+                  </div>
+                  <p className="text-[8px] text-slate-400 font-mono mt-0.5">{sale.invoiceNumber}</p>
+                </div>
+              )}
+
+              {/* Status Stamp */}
+              {settings.printer?.printPaymentStatus !== false && (
+                <p className="font-bold tracking-widest text-slate-800 pt-1">
+                  {sale.debtRemaining && sale.debtRemaining > 0
+                    ? sale.paidAmount > 0
+                      ? '*** BAYAR SEBAGIAN ***'
+                      : '*** BELUM LUNAS / TEMPO ***'
+                    : '*** LUNAS ***'}
+                </p>
+              )}
             </div>
           </div>
         </div>

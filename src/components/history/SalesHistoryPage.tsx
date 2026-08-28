@@ -29,19 +29,25 @@ import {
   TrendingUp,
   RefreshCw,
   ShoppingBag,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
 } from 'lucide-react';
 
 export const SalesHistoryPage: React.FC = () => {
-  const { sales, refundSale, settings, stores } = useStore();
+  const { sales, refundSale, settleDebtSale, settings, stores } = useStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<'today' | '7days' | '30days' | 'all'>('all');
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
+  const [debtSettleAmount, setDebtSettleAmount] = useState<number>(0);
+  const [isSettlingDebt, setIsSettlingDebt] = useState(false);
 
   // Trigger subtle loading animation on filter change for perceived responsiveness
   const handleFilterChange = (callback: () => void) => {
@@ -122,6 +128,16 @@ export const SalesHistoryPage: React.FC = () => {
       // Payment filter
       const matchPayment = paymentFilter === 'all' || s.paymentMethod === paymentFilter;
 
+      // Status filter
+      let matchStatus = true;
+      if (statusFilter === 'completed') {
+        matchStatus = s.status === 'completed' && (!s.debtRemaining || s.debtRemaining <= 0);
+      } else if (statusFilter === 'debt') {
+        matchStatus = (s.debtRemaining || 0) > 0;
+      } else if (statusFilter === 'refunded') {
+        matchStatus = s.status === 'refunded';
+      }
+
       // Search filter
       const q = searchQuery.toLowerCase().trim();
       const matchSearch =
@@ -132,15 +148,16 @@ export const SalesHistoryPage: React.FC = () => {
         (s.paymentGatewayRef && s.paymentGatewayRef.toLowerCase().includes(q)) ||
         s.items.some((it) => it.productName.toLowerCase().includes(q));
 
-      return matchStore && matchDate && matchPayment && matchSearch;
+      return matchStore && matchDate && matchPayment && matchStatus && matchSearch;
     });
-  }, [sales, storeFilter, dateFilter, paymentFilter, searchQuery]);
+  }, [sales, storeFilter, dateFilter, paymentFilter, statusFilter, searchQuery]);
 
   // Aggregate stats
   const completedSales = filteredSales.filter((s) => s.status === 'completed');
   const totalRevenue = completedSales.reduce((sum, s) => sum + s.totalAmount, 0);
   const totalCount = completedSales.length;
   const averageTicket = totalCount > 0 ? Math.round(totalRevenue / totalCount) : 0;
+  const totalPiutang = filteredSales.reduce((sum, s) => sum + (s.debtRemaining || 0), 0);
 
   const handleOpenReceipt = (sale: Sale) => {
     setReceiptSale(sale);
@@ -157,6 +174,19 @@ export const SalesHistoryPage: React.FC = () => {
     }
   };
 
+  const handleSettleDebtSubmit = (sale: Sale) => {
+    if (!debtSettleAmount || debtSettleAmount <= 0) return;
+    settleDebtSale(sale.id, debtSettleAmount);
+    setIsSettlingDebt(false);
+    setDebtSettleAmount(0);
+    const updated = sales.find((s) => s.id === sale.id);
+    if (updated) {
+      setSelectedSale(updated);
+    } else {
+      setSelectedSale(null);
+    }
+  };
+
   const getStoreName = (storeId?: string) => {
     return stores.find((s) => s.id === storeId)?.name || 'Toko Utama';
   };
@@ -165,51 +195,71 @@ export const SalesHistoryPage: React.FC = () => {
     const headers = [
       'No Nota',
       'Cabang Toko',
-      'Tanggal',
+      'Tanggal Transaksi',
+      'Jatuh Tempo Piutang',
       'Kasir',
-      'Pelanggan',
+      'Nama Pelanggan',
       'Metode Pembayaran',
-      'Ref Gateway',
-      'Total Item',
-      'Subtotal',
-      'Diskon',
-      'Poin Dipakai',
-      'Pajak',
-      'Total Akhir',
-      'Status',
+      'Status Piutang / Bayar',
+      'Total Item (Pcs)',
+      'Subtotal (Rp)',
+      'Diskon (Rp)',
+      'Diskon Poin (Rp)',
+      'Pajak PPN (Rp)',
+      'Total Akhir (Rp)',
+      'Dibayar (Rp)',
+      'Kembalian (Rp)',
+      'Sisa Piutang (Rp)',
+      'Status Transaksi',
+      'Rincian Produk',
     ];
 
-    const rows = filteredSales.map((s) => [
-      `"${s.invoiceNumber}"`,
-      `"${getStoreName(s.storeId)}"`,
-      `"${formatIndonesianDate(s.date)}"`,
-      `"${s.cashierName}"`,
-      `"${s.customerName || 'Umum'}"`,
-      `"${getPaymentMethodLabel(s.paymentMethod)}"`,
-      `"${s.paymentGatewayRef || '-'}"`,
-      s.items.reduce((acc, i) => acc + i.quantity, 0),
-      s.subtotal,
-      s.discount,
-      s.pointsRedeemed || 0,
-      s.tax,
-      s.totalAmount,
-      s.status,
-    ]);
+    const rows = filteredSales.map((s) => {
+      const itemsDetail = s.items.map((i) => `${i.productName} (${i.quantity}x)`).join('; ');
+      const paymentStatusStr =
+        s.debtRemaining && s.debtRemaining > 0
+          ? s.paidAmount > 0
+            ? 'Bayar Sebagian'
+            : 'Belum Lunas / Tempo'
+          : 'Lunas';
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+      return [
+        `"${s.invoiceNumber}"`,
+        `"${getStoreName(s.storeId)}"`,
+        `"${formatIndonesianDate(s.date)}"`,
+        `"${s.dueDate ? formatIndonesianDate(s.dueDate) : '-'}"`,
+        `"${s.cashierName}"`,
+        `"${s.customerName || 'Umum'}"`,
+        `"${getPaymentMethodLabel(s.paymentMethod)}"`,
+        `"${paymentStatusStr}"`,
+        s.items.reduce((acc, i) => acc + i.quantity, 0),
+        s.subtotal,
+        s.discount,
+        s.pointsDiscount || 0,
+        s.tax,
+        s.totalAmount,
+        s.paidAmount,
+        s.changeAmount || 0,
+        s.debtRemaining || 0,
+        `"${s.status === 'completed' ? 'Selesai' : 'Dibatalkan'}"`,
+        `"${itemsDetail}"`,
+      ];
+    });
 
-    const encodedUri = encodeURI(csvContent);
+    // Add UTF-8 BOM (\uFEFF) for direct Excel compatibility
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
+    link.setAttribute('href', url);
     link.setAttribute(
       'download',
-      `laporan_penjualan_${new Date().toISOString().slice(0, 10)}.csv`
+      `Laporan_Transaksi_Averion_${new Date().toISOString().slice(0, 10)}.csv`
     );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -217,12 +267,12 @@ export const SalesHistoryPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <Receipt className="w-6 h-6 text-[#00A876]" />
-            Riwayat Penjualan &amp; Transaksi Multi-Cabang
+            Riwayat Penjualan &amp; Transaksi POS
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Semua transaksi kasir, gateway digital OVO / GoPay / VA, dan data member tercatat terpadu
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            Semua transaksi kasir, piutang tempo, gateway digital QRIS, dan ekspor akuntansi CSV
           </p>
         </div>
 
@@ -230,7 +280,7 @@ export const SalesHistoryPage: React.FC = () => {
           <button
             type="button"
             onClick={handleRefresh}
-            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition cursor-pointer"
+            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition cursor-pointer"
             title="Muat Ulang Data"
           >
             <RefreshCw className={`w-4 h-4 ${isDataLoading ? 'animate-spin text-[#00A876]' : ''}`} />
@@ -239,10 +289,10 @@ export const SalesHistoryPage: React.FC = () => {
           <button
             id="export-sales-csv-btn"
             onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#00A876] hover:bg-[#008f65] text-white text-xs font-bold shadow-xs transition cursor-pointer"
           >
-            <FileSpreadsheet className="w-4 h-4 text-[#00A876]" />
-            <span>Ekspor CSV</span>
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Ekspor CSV Akuntansi</span>
           </button>
         </div>
       </div>
@@ -317,10 +367,10 @@ export const SalesHistoryPage: React.FC = () => {
       </div>
 
       {/* Summary KPI Cards for Selected Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-          <p className="text-xs text-slate-500 font-semibold">Omset Sesuai Filter</p>
-          <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Omset Sesuai Filter</p>
+          <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
             {formatRupiah(totalRevenue)}
           </p>
           <p className="text-[11px] text-slate-400 mt-1">
@@ -328,9 +378,9 @@ export const SalesHistoryPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-          <p className="text-xs text-slate-500 font-semibold">Volume Transaksi Filter</p>
-          <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Volume Transaksi</p>
+          <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
             {totalCount} Transaksi
           </p>
           <p className="text-[11px] text-slate-400 mt-1">
@@ -338,17 +388,30 @@ export const SalesHistoryPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-          <p className="text-xs text-slate-500 font-semibold">Rata-rata Nilai Transaksi</p>
-          <p className="text-xl sm:text-2xl font-black text-slate-800 mt-1">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Rata-rata Basket</p>
+          <p className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 mt-1">
             {formatRupiah(averageTicket)}
           </p>
-          <p className="text-[11px] text-slate-400 mt-1">Rata-rata keranjang kasir</p>
+          <p className="text-[11px] text-slate-400 mt-1">Rata-rata per transaksi</p>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+          <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+            Total Piutang Belum Lunas
+          </p>
+          <p className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
+            {formatRupiah(totalPiutang)}
+          </p>
+          <p className="text-[11px] text-slate-400 mt-1">
+            {filteredSales.filter((s) => (s.debtRemaining || 0) > 0).length} nota memiliki tagihan tempo
+          </p>
         </div>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
           {/* Search */}
           <div className="sm:col-span-4 relative">
@@ -359,18 +422,18 @@ export const SalesHistoryPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nota, kasir, pelanggan, produk..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00A876] focus:bg-white"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00A876] focus:bg-white"
             />
           </div>
 
           {/* Store Branch Filter */}
-          <div className="sm:col-span-3">
+          <div className="sm:col-span-2">
             <select
               value={storeFilter}
               onChange={(e) => handleFilterChange(() => setStoreFilter(e.target.value))}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#00A876]"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-white bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A876]"
             >
-              <option value="all">Semua Cabang Toko</option>
+              <option value="all">Semua Cabang</option>
               {stores.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} ({s.code})
@@ -379,12 +442,26 @@ export const SalesHistoryPage: React.FC = () => {
             </select>
           </div>
 
+          {/* Status Filter */}
+          <div className="sm:col-span-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => handleFilterChange(() => setStatusFilter(e.target.value))}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A876]"
+            >
+              <option value="all">Semua Status Bayar</option>
+              <option value="completed">Lunas Penuh</option>
+              <option value="debt">Belum Lunas / Piutang</option>
+              <option value="refunded">Dibatalkan / Retur</option>
+            </select>
+          </div>
+
           {/* Date Filter */}
           <div className="sm:col-span-2">
             <select
               value={dateFilter}
               onChange={(e) => handleFilterChange(() => setDateFilter(e.target.value as any))}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#00A876]"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A876]"
             >
               <option value="all">Semua Waktu</option>
               <option value="today">Hari Ini</option>
@@ -394,17 +471,17 @@ export const SalesHistoryPage: React.FC = () => {
           </div>
 
           {/* Payment Method Filter */}
-          <div className="sm:col-span-3">
+          <div className="sm:col-span-2">
             <select
               value={paymentFilter}
               onChange={(e) => handleFilterChange(() => setPaymentFilter(e.target.value))}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#00A876]"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A876]"
             >
-              <option value="all">Semua Metode Pembayaran</option>
+              <option value="all">Semua Pembayaran</option>
               <option value="cash">Tunai (Cash)</option>
               <option value="gopay">GoPay Digital</option>
-              <option value="ovo">OVO Push Pay</option>
-              <option value="qris">QRIS Universal</option>
+              <option value="ovo">OVO Push</option>
+              <option value="qris">QRIS Dinamis</option>
               <option value="transfer">Transfer Bank (VA)</option>
               <option value="debit">Kartu Debit/EDC</option>
             </select>
@@ -414,81 +491,82 @@ export const SalesHistoryPage: React.FC = () => {
 
       {/* SKELETON LOADING OR TRANSACTIONS TABLE */}
       {isDataLoading ? (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden p-6 space-y-4 animate-pulse">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="h-4 bg-slate-200 rounded-md w-48" />
-            <div className="h-4 bg-slate-100 rounded-md w-24" />
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden p-6 space-y-4 animate-pulse">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-md w-48" />
+            <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-md w-24" />
           </div>
           <div className="space-y-3.5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0 gap-4">
+              <div key={i} className="flex items-center justify-between py-2.5 border-b border-slate-50 dark:border-slate-800 last:border-0 gap-4">
                 <div className="space-y-1.5 w-1/4">
-                  <div className="h-3.5 bg-slate-200 rounded w-3/4" />
-                  <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                  <div className="h-3.5 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+                  <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded w-1/2" />
                 </div>
-                <div className="h-3 bg-slate-150 bg-slate-100 rounded w-20 hidden sm:block" />
-                <div className="h-3 bg-slate-200 rounded w-24 hidden md:block" />
-                <div className="h-3 bg-slate-100 rounded w-16" />
-                <div className="h-6 bg-slate-100 rounded-full w-20" />
-                <div className="h-4 bg-slate-200 rounded w-20" />
-                <div className="w-16 h-7 bg-slate-100 rounded-lg shrink-0" />
+                <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded w-20 hidden sm:block" />
+                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-24 hidden md:block" />
+                <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded w-16" />
+                <div className="h-6 bg-slate-100 dark:bg-slate-800 rounded-full w-20" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20" />
+                <div className="w-16 h-7 bg-slate-100 dark:bg-slate-800 rounded-lg shrink-0" />
               </div>
             ))}
           </div>
         </div>
       ) : filteredSales.length === 0 ? (
-        <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-3">
-          <Receipt className="w-12 h-12 text-slate-300 mx-auto" />
-          <h4 className="font-bold text-slate-700 text-sm">Tidak Ada Transaksi</h4>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+        <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl border border-slate-200 dark:border-slate-800 text-center space-y-3">
+          <Receipt className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
+          <h4 className="font-bold text-slate-700 dark:text-slate-300 text-sm">Tidak Ada Transaksi</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
             Tidak ada transaksi yang cocok dengan filter cabang toko dan pencarian yang dipilih.
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+              <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-800">
                 <tr>
                   <th className="py-3 px-4">No. Nota &amp; Cabang</th>
                   <th className="py-3 px-4">Waktu Transaksi</th>
-                  <th className="py-3 px-4">Kasir &amp; Member</th>
+                  <th className="py-3 px-4">Kasir &amp; Pelanggan</th>
                   <th className="py-3 px-4">Item Terjual</th>
-                  <th className="py-3 px-4">Metode Bayar / Gateway</th>
+                  <th className="py-3 px-4">Metode Bayar</th>
                   <th className="py-3 px-4 text-right">Total Akhir</th>
-                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-center">Status Bayar</th>
                   <th className="py-3 px-4 text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredSales.map((sale) => {
                   const payColor = getPaymentMethodColor(sale.paymentMethod);
                   const totalUnits = sale.items.reduce((acc, i) => acc + i.quantity, 0);
+                  const hasDebt = (sale.debtRemaining || 0) > 0;
 
                   return (
                     <tr
                       key={sale.id}
                       id={`sale-row-${sale.id}`}
-                      className="hover:bg-slate-50/80 transition"
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition"
                     >
                       {/* Invoice & Branch */}
                       <td className="py-3 px-4">
-                        <p className="font-mono font-bold text-slate-900">{sale.invoiceNumber}</p>
-                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded font-medium">
+                        <p className="font-mono font-bold text-slate-900 dark:text-white">{sale.invoiceNumber}</p>
+                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-medium mt-0.5">
                           <Building2 className="w-2.5 h-2.5 text-slate-400" />
                           {getStoreName(sale.storeId)}
                         </span>
                       </td>
 
                       {/* Date */}
-                      <td className="py-3 px-4 whitespace-nowrap text-slate-500">
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
                         {formatIndonesianDate(sale.date)}
                       </td>
 
                       {/* Cashier & Customer */}
                       <td className="py-3 px-4">
-                        <p className="font-semibold text-slate-800">{sale.cashierName}</p>
-                        <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                        <p className="font-semibold text-slate-800 dark:text-slate-200">{sale.cashierName}</p>
+                        <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                           <User className="w-3 h-3 text-slate-400" />
                           <span>{sale.customerName || 'Umum'}</span>
                           {sale.pointsRedeemed && sale.pointsRedeemed > 0 ? (
@@ -501,7 +579,7 @@ export const SalesHistoryPage: React.FC = () => {
 
                       {/* Items Summary */}
                       <td className="py-3 px-4 max-w-[200px]">
-                        <p className="font-medium text-slate-700 truncate">
+                        <p className="font-medium text-slate-700 dark:text-slate-300 truncate">
                           {sale.items.map((i) => `${i.quantity}x ${i.productName}`).join(', ')}
                         </p>
                         <p className="text-[10px] text-slate-400">
@@ -530,21 +608,40 @@ export const SalesHistoryPage: React.FC = () => {
                       </td>
 
                       {/* Total Amount */}
-                      <td className="py-3 px-4 text-right font-black text-slate-900 text-xs sm:text-sm">
-                        {formatRupiah(sale.totalAmount)}
+                      <td className="py-3 px-4 text-right">
+                        <span className="font-black text-slate-900 dark:text-white text-xs sm:text-sm block">
+                          {formatRupiah(sale.totalAmount)}
+                        </span>
+                        {hasDebt && (
+                          <span className="text-[10px] font-bold text-rose-600 block">
+                            Sisa Piutang: {formatRupiah(sale.debtRemaining || 0)}
+                          </span>
+                        )}
                       </td>
 
                       {/* Status */}
                       <td className="py-3 px-4 text-center">
-                        {sale.status === 'completed' ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                            <CheckCircle2 className="w-3 h-3 text-[#00A876]" />
-                            Lunas
-                          </span>
-                        ) : (
+                        {sale.status === 'refunded' ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
                             <XCircle className="w-3 h-3 text-red-600" />
                             Dibatalkan
+                          </span>
+                        ) : hasDebt ? (
+                          <div className="space-y-0.5">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              {sale.paidAmount > 0 ? 'Bayar Sebagian' : 'Tempo / Piutang'}
+                            </span>
+                            {sale.dueDate && (
+                              <span className="text-[9px] text-slate-400 block">
+                                Tempo: {new Date(sale.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-3 h-3 text-[#00A876]" />
+                            Lunas
                           </span>
                         )}
                       </td>
@@ -554,14 +651,14 @@ export const SalesHistoryPage: React.FC = () => {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => setSelectedSale(sale)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                             title="Lihat Detail Transaksi"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleOpenReceipt(sale)}
-                            className="p-1.5 rounded-lg text-[#00A876] hover:bg-emerald-50 transition cursor-pointer"
+                            className="p-1.5 rounded-lg text-[#00A876] hover:bg-emerald-50 dark:hover:bg-slate-800 transition cursor-pointer"
                             title="Cetak Ulang Struk"
                           >
                             <Printer className="w-4 h-4" />
@@ -588,12 +685,12 @@ export const SalesHistoryPage: React.FC = () => {
         >
           <div
             id="sale-detail-card"
-            className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150 my-6"
+            className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150 my-6"
           >
-            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+            <div className="bg-slate-900 dark:bg-slate-950 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
               <div>
                 <h3 className="font-bold text-base">Detail Transaksi Penjualan</h3>
-                <p className="text-xs font-mono text-indigo-400">
+                <p className="text-xs font-mono text-[#00A876]">
                   {selectedSale.invoiceNumber}
                 </p>
               </div>
@@ -607,60 +704,131 @@ export const SalesHistoryPage: React.FC = () => {
 
             <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
               {/* Metadata Grid */}
-              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 text-xs">
                 <div>
                   <span className="text-slate-400 block">Cabang Toko</span>
-                  <span className="font-bold text-slate-800">
+                  <span className="font-bold text-slate-800 dark:text-white">
                     {getStoreName(selectedSale.storeId)}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Tanggal &amp; Waktu</span>
-                  <span className="font-semibold text-slate-800">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
                     {formatIndonesianDate(selectedSale.date)}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Kasir</span>
-                  <span className="font-semibold text-slate-800">{selectedSale.cashierName}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedSale.cashierName}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Pelanggan / Member</span>
-                  <span className="font-semibold text-slate-800">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
                     {selectedSale.customerName || 'Pelanggan Umum'}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Metode Pembayaran</span>
-                  <span className="font-bold text-indigo-700 uppercase">
+                  <span className="font-bold text-[#00A876] uppercase">
                     {getPaymentMethodLabel(selectedSale.paymentMethod)}
                   </span>
                 </div>
-                {selectedSale.paymentGatewayRef && (
+                {selectedSale.dueDate && (
                   <div>
-                    <span className="text-slate-400 block">Referensi Gateway</span>
-                    <span className="font-mono text-[11px] text-slate-700">
-                      {selectedSale.paymentGatewayRef}
+                    <span className="text-slate-400 block">Jatuh Tempo Piutang</span>
+                    <span className="font-bold text-amber-600">
+                      {formatIndonesianDate(selectedSale.dueDate)}
                     </span>
                   </div>
                 )}
               </div>
 
+              {/* Debt Settlement Box if Unpaid */}
+              {selectedSale.debtRemaining && selectedSale.debtRemaining > 0 ? (
+                <div className="p-4 bg-amber-50/80 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <span className="text-xs font-bold text-amber-900 dark:text-amber-300">
+                        Tagihan Piutang Belum Lunas
+                      </span>
+                    </div>
+                    <span className="text-xs font-black text-rose-600 dark:text-rose-400">
+                      Sisa: {formatRupiah(selectedSale.debtRemaining)}
+                    </span>
+                  </div>
+
+                  {isSettlingDebt ? (
+                    <div className="space-y-2 pt-2 border-t border-amber-200 dark:border-amber-800/60">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        Nominal Bayar Pelunasan (Rp):
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={debtSettleAmount || ''}
+                          onChange={(e) => setDebtSettleAmount(Math.min(selectedSale.debtRemaining || 0, Number(e.target.value) || 0))}
+                          max={selectedSale.debtRemaining}
+                          placeholder={`Maks ${formatRupiah(selectedSale.debtRemaining)}`}
+                          className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setDebtSettleAmount(selectedSale.debtRemaining || 0)}
+                          className="px-2.5 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-[11px] font-bold cursor-pointer"
+                        >
+                          Lunas Penuh
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setIsSettlingDebt(false)}
+                          className="px-3 py-1.5 text-xs text-slate-500 font-semibold cursor-pointer"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSettleDebtSubmit(selectedSale)}
+                          disabled={!debtSettleAmount || debtSettleAmount <= 0}
+                          className="px-4 py-1.5 bg-[#00A876] hover:bg-[#008f65] text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                        >
+                          Simpan Pembayaran
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSettlingDebt(true);
+                        setDebtSettleAmount(selectedSale.debtRemaining || 0);
+                      }}
+                      className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Terima Pembayaran Piutang Sekarang</span>
+                    </button>
+                  )}
+                </div>
+              ) : null}
+
               {/* Items List */}
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
                   Daftar Barang ({selectedSale.items.length} jenis)
                 </h4>
-                <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
+                <div className="border border-slate-200 dark:border-slate-700/60 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                   {selectedSale.items.map((item) => (
-                    <div key={item.productId} className="p-3 flex items-center justify-between">
+                    <div key={item.productId} className="p-3 flex items-center justify-between bg-white dark:bg-slate-900">
                       <div>
-                        <p className="font-bold text-slate-900">{item.productName}</p>
+                        <p className="font-bold text-slate-900 dark:text-white">{item.productName}</p>
                         <p className="text-slate-400 text-[11px]">
                           {formatRupiah(item.price)} &times; {item.quantity}
                         </p>
                       </div>
-                      <span className="font-bold text-slate-800">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
                         {formatRupiah(item.subtotal)}
                       </span>
                     </div>
@@ -669,15 +837,15 @@ export const SalesHistoryPage: React.FC = () => {
               </div>
 
               {/* Price Calculations */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs text-slate-600">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-slate-800">
+                  <span className="font-semibold text-slate-800 dark:text-white">
                     {formatRupiah(selectedSale.subtotal)}
                   </span>
                 </div>
                 {selectedSale.discount > 0 && (
-                  <div className="flex justify-between text-indigo-700">
+                  <div className="flex justify-between text-emerald-700 font-semibold">
                     <span>Diskon Promo</span>
                     <span>-{formatRupiah(selectedSale.discount)}</span>
                   </div>
@@ -694,9 +862,9 @@ export const SalesHistoryPage: React.FC = () => {
                     <span>+{formatRupiah(selectedSale.tax)}</span>
                   </div>
                 )}
-                <div className="pt-2 border-t border-slate-200 flex justify-between text-sm font-black text-slate-900">
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm font-black text-slate-900 dark:text-white">
                   <span>Total Tagihan Akhir</span>
-                  <span className="text-indigo-900 font-black">
+                  <span className="text-[#00A876] font-black">
                     {formatRupiah(selectedSale.totalAmount)}
                   </span>
                 </div>
@@ -710,14 +878,20 @@ export const SalesHistoryPage: React.FC = () => {
                     <span>{formatRupiah(selectedSale.changeAmount)}</span>
                   </div>
                 )}
+                {selectedSale.debtRemaining && selectedSale.debtRemaining > 0 ? (
+                  <div className="flex justify-between text-[11px] text-rose-600 font-bold">
+                    <span>Sisa Piutang</span>
+                    <span>{formatRupiah(selectedSale.debtRemaining)}</span>
+                  </div>
+                ) : null}
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
                 {selectedSale.status === 'completed' && (
                   <button
                     onClick={() => handleRefund(selectedSale)}
-                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-semibold p-2 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-semibold p-2 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Batalkan / Retur</span>
@@ -726,7 +900,7 @@ export const SalesHistoryPage: React.FC = () => {
                 <div className="flex items-center gap-2 ml-auto">
                   <button
                     onClick={() => handleOpenReceipt(selectedSale)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#00A876] hover:bg-[#008f65] text-white text-xs font-bold shadow-xs transition cursor-pointer"
                   >
                     <Printer className="w-3.5 h-3.5" />
                     <span>Cetak Struk</span>

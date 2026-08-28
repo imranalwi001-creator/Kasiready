@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { User, UserRole } from '../../types';
+import { BrandLogo } from '../common/BrandLogo';
 import {
   Save,
   RotateCcw,
@@ -32,8 +33,26 @@ import {
   QrCode,
   Zap,
   CheckCircle,
+  Palette,
+  Sun,
+  Moon,
+  Image as ImageIcon,
+  Sparkles,
+  Layout,
+  Receipt as ReceiptIcon,
+  FileText,
+  Target,
+  Award,
+  Eye,
+  EyeOff,
+  Lock,
+  Unlock,
+  KeyRound,
+  Copy,
+  Shield,
 } from 'lucide-react';
 import { triggerPaymentSuccessNotification } from '../../utils/soundNotifications';
+import { formatRupiah } from '../../utils/formatters';
 
 export const SettingsPage: React.FC = () => {
   const {
@@ -51,11 +70,14 @@ export const SettingsPage: React.FC = () => {
     currentUser,
     stores,
     hasRole,
+    theme,
+    setTheme,
+    toggleTheme,
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<
-    'gateway' | 'audio' | 'whatsapp' | 'printer' | 'users' | 'store' | 'general' | 'database'
-  >('gateway');
+    'brand' | 'gateway' | 'audio' | 'whatsapp' | 'printer' | 'users' | 'store' | 'general' | 'database'
+  >('brand');
 
   // Form State initialized with settings
   const [formData, setFormData] = useState({ ...settings });
@@ -82,6 +104,7 @@ export const SettingsPage: React.FC = () => {
   // User Management State (for Super Admin)
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showModalPassword, setShowModalPassword] = useState(false);
   const [userFormData, setUserFormData] = useState<{
     username: string;
     name: string;
@@ -97,6 +120,78 @@ export const SettingsPage: React.FC = () => {
     role: 'kasir',
     storeId: stores[0]?.id || 'store-1',
   });
+
+  // Password Security & Visibility State (Super Admin Only)
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [targetPasswordUser, setTargetPasswordUser] = useState<User | null>(null);
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [showQuickPasswordPlain, setShowQuickPasswordPlain] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState<string | null>(null);
+
+  const togglePasswordReveal = (userId: string) => {
+    if (!hasRole(['super_admin'])) return;
+    setRevealedPasswords((prev) => ({
+      ...prev,
+      [userId]: !prev[userId],
+    }));
+  };
+
+  const handleCopyPassword = (userId: string, pass?: string) => {
+    if (!hasRole(['super_admin'])) return;
+    const textToCopy = pass || 'admin123';
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(textToCopy);
+      setCopiedUserId(userId);
+      setTimeout(() => setCopiedUserId(null), 2000);
+    }
+  };
+
+  const openChangePasswordModal = (user: User) => {
+    if (!hasRole(['super_admin'])) return;
+    setTargetPasswordUser(user);
+    setNewPasswordInput('');
+    setConfirmPasswordInput('');
+    setShowQuickPasswordPlain(false);
+    setPasswordChangeError(null);
+    setPasswordChangeSuccess(null);
+    setShowChangePasswordModal(true);
+  };
+
+  const handleSaveChangedPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hasRole(['super_admin'])) {
+      setPasswordChangeError('Hanya Super Admin yang berhak mengubah kata sandi.');
+      return;
+    }
+    if (!targetPasswordUser) return;
+    if (!newPasswordInput.trim()) {
+      setPasswordChangeError('Kata sandi baru tidak boleh kosong.');
+      return;
+    }
+    if (newPasswordInput.length < 4) {
+      setPasswordChangeError('Kata sandi minimal 4 karakter.');
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      setPasswordChangeError('Konfirmasi kata sandi tidak cocok.');
+      return;
+    }
+
+    updateUser(targetPasswordUser.id, {
+      password: newPasswordInput.trim(),
+    });
+
+    setPasswordChangeSuccess(`Kata sandi untuk @${targetPasswordUser.username} (${targetPasswordUser.name}) berhasil diperbarui!`);
+    setTimeout(() => {
+      setShowChangePasswordModal(false);
+      setPasswordChangeSuccess(null);
+      setTargetPasswordUser(null);
+    }, 1200);
+  };
 
   const handleSave = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -200,7 +295,36 @@ export const SettingsPage: React.FC = () => {
     });
   };
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Silakan pilih file gambar (PNG, JPG, SVG, WebP).');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Ukuran file logo maksimal 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        setFormData({
+          ...formData,
+          logoType: 'custom',
+          logoUrl: base64,
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const navTabs = [
+    { id: 'brand', label: 'Logo & Tema Tampilan', icon: Palette },
     { id: 'gateway', label: 'Metode Pembayaran & QRIS', icon: CreditCard },
     { id: 'audio', label: 'Suara & Soundbox', icon: Volume2 },
     { id: 'printer', label: 'Koneksi Printer', icon: Printer },
@@ -283,6 +407,352 @@ export const SettingsPage: React.FC = () => {
         {/* Right Tab Content Panel */}
         <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-xs p-5 sm:p-7 overflow-y-auto">
           <form onSubmit={handleSave} className="space-y-6">
+            {/* 0. BRAND, LOGO & TEMA TAMPILAN */}
+            {activeTab === 'brand' && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 p-3.5 bg-[#00A876]/10 rounded-2xl border border-[#00A876]/20">
+                  <Palette className="w-6 h-6 text-[#00A876] shrink-0" />
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Logo Toko &amp; Mode Tampilan Aplikasi
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Sesuaikan logo identitas brand toko (unggah file atau pilih ikon preset) dan pilih mode tema (Dark / Light)
+                    </p>
+                  </div>
+                </div>
+
+                {/* 1. THEME TOGGLE (DARK / LIGHT MODE) */}
+                <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-[#00A876]" />
+                        Mode Tema Antarmuka (Theme Mode)
+                      </h5>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Pilih suasana visual yang nyaman untuk kasir dan admin.
+                      </p>
+                    </div>
+                    <span className="text-[11px] px-2.5 py-1 rounded-full font-bold bg-[#00A876]/15 text-[#00A876] border border-[#00A876]/30">
+                      Aktif: {theme === 'dark' ? 'Dark Mode (Obsidian)' : 'Light Mode (Terang)'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Light Mode Card */}
+                    <button
+                      type="button"
+                      onClick={() => setTheme('light')}
+                      className={`p-4 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3.5 ${
+                        theme === 'light'
+                          ? 'border-[#00A876] bg-teal-50/50 shadow-md ring-2 ring-[#00A876]/20'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 shadow-xs">
+                        <Sun className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-xs text-slate-900 dark:text-white">
+                            Light Mode (Terang &amp; Bersih)
+                          </p>
+                          {theme === 'light' && (
+                            <span className="w-2 h-2 rounded-full bg-[#00A876]" />
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                          Tampilan cerah dengan kontras tinggi, ideal untuk kasir di ruangan terang dan cetak nota.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Dark Mode Card */}
+                    <button
+                      type="button"
+                      onClick={() => setTheme('dark')}
+                      className={`p-4 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3.5 ${
+                        theme === 'dark'
+                          ? 'border-[#00A876] bg-slate-900 text-white shadow-md ring-2 ring-[#00A876]/30'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-slate-900 text-[#00A876] border border-slate-700 flex items-center justify-center shrink-0 shadow-xs">
+                        <Moon className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-xs text-slate-900 dark:text-white">
+                            Dark Mode (Obsidian &amp; Emerald)
+                          </p>
+                          {theme === 'dark' && (
+                            <span className="w-2 h-2 rounded-full bg-[#00A876]" />
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                          Tampilan gelap elegan Averion yang ramah di mata untuk shift kasir malam dan hemat daya layar.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. LOGO MANAGEMENT */}
+                <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                        <ImageIcon className="w-4 h-4 text-[#00A876]" />
+                        Kustomisasi Logo Toko
+                      </h5>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Logo akan otomatis tampil di Sidebar Kasir, Header POS, Layar Login, dan Cetak Struk.
+                      </p>
+                    </div>
+
+                    {/* Switcher Mode: Preset vs Upload */}
+                    <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, logoType: 'preset' })}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          formData.logoType !== 'custom'
+                            ? 'bg-white dark:bg-slate-900 text-[#00A876] shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        }`}
+                      >
+                        Ikon Preset
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, logoType: 'custom' })}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          formData.logoType === 'custom'
+                            ? 'bg-white dark:bg-slate-900 text-[#00A876] shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        }`}
+                      >
+                        Unggah Gambar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Option A: Custom Image Upload */}
+                  {formData.logoType === 'custom' ? (
+                    <div className="space-y-4">
+                      <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#00A876] dark:hover:border-[#00A876] rounded-2xl p-6 text-center transition-all bg-slate-50/50 dark:bg-slate-800/30">
+                        {formData.logoUrl ? (
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-20 h-20 rounded-2xl border-2 border-[#00A876] overflow-hidden shadow-lg bg-white flex items-center justify-center p-1">
+                              <img
+                                src={formData.logoUrl}
+                                alt="Logo Toko"
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                Gambar Logo Kustom Aktif
+                              </p>
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                Siap digunakan di seluruh sistem POS.
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 pt-1">
+                              <label className="px-3.5 py-1.5 bg-[#00A876] hover:bg-[#008f65] text-white rounded-xl text-xs font-bold cursor-pointer transition shadow-xs">
+                                <span>Ganti Gambar Logo</span>
+                                <input
+                                  type="file"
+                                  accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                  onChange={handleLogoUpload}
+                                  className="hidden"
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setFormData({
+                                    ...formData,
+                                    logoType: 'preset',
+                                    logoUrl: undefined,
+                                    logoPreset: 'averion_triangle',
+                                  })
+                                }
+                                className="px-3 py-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 rounded-xl text-xs font-semibold transition cursor-pointer"
+                              >
+                                Hapus / Gunakan Preset
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2.5">
+                            <div className="w-12 h-12 rounded-2xl bg-[#00A876]/15 text-[#00A876] flex items-center justify-center shadow-xs">
+                              <Upload className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                Klik untuk memilih file logo toko Anda
+                              </p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                Format: PNG, JPG, SVG, atau WebP (Rekomendasi rasio 1:1, Maks 2MB)
+                              </p>
+                            </div>
+                            <label className="mt-2 px-4 py-2 bg-[#00A876] hover:bg-[#008f65] text-white rounded-xl text-xs font-bold cursor-pointer transition shadow-md shadow-[#00A876]/20">
+                              <span>Pilih File Logo dari Komputer</span>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                onChange={handleLogoUpload}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Option B: Preset Icon Selector */
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Pilih dari koleksi ikon identitas brand premium:
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                          { id: 'averion_triangle', label: 'Averion Triangle', desc: 'Modern & Presisi' },
+                          { id: 'diamond', label: 'Emerald Diamond', desc: 'Mewah & Eksklusif' },
+                          { id: 'hexagon', label: 'Cyber Shield', desc: 'Aman & Tangguh' },
+                          { id: 'store', label: 'Retail Store', desc: 'Toko & Swalayan' },
+                          { id: 'crown', label: 'Royal Crown', desc: 'VIP & Unggulan' },
+                          { id: 'sparkle', label: 'Magic Sparkle', desc: 'Cepat & Cerdas' },
+                          { id: 'box', label: 'Package Courier', desc: 'Grosir & Logistik' },
+                          { id: 'rocket', label: 'Fast Rocket', desc: 'Cepat & Modern' },
+                        ].map((preset) => {
+                          const isSelected =
+                            formData.logoPreset === preset.id ||
+                            (!formData.logoPreset && preset.id === 'averion_triangle');
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() =>
+                                setFormData({
+                                  ...formData,
+                                  logoType: 'preset',
+                                  logoPreset: preset.id as any,
+                                  logoUrl: undefined,
+                                })
+                              }
+                              className={`p-3 rounded-2xl border-2 text-center flex flex-col items-center gap-2 transition cursor-pointer ${
+                                isSelected
+                                  ? 'border-[#00A876] bg-teal-50/60 dark:bg-slate-800 shadow-sm ring-1 ring-[#00A876]'
+                                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
+                              }`}
+                            >
+                              <BrandLogo
+                                logoType="preset"
+                                logoPreset={preset.id}
+                                size="md"
+                              />
+                              <div>
+                                <p className="text-xs font-bold text-slate-900 dark:text-white">
+                                  {preset.label}
+                                </p>
+                                <span className="text-[10px] text-slate-400">
+                                  {preset.desc}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. MULTI-PLATFORM LIVE PREVIEW */}
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <Layout className="w-4 h-4 text-[#00A876]" />
+                      Pratinjau Langsung di Berbagai Area (Live Multi-View)
+                    </h5>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                      {/* Preview 1: Sidebar */}
+                      <div className="p-3.5 rounded-2xl bg-[#0B1320] text-white border border-slate-800 shadow-xs space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#00A876]">
+                          Pratinjau Sidebar
+                        </span>
+                        <div className="p-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center gap-3">
+                          <BrandLogo
+                            logoType={formData.logoType}
+                            logoPreset={formData.logoPreset}
+                            logoUrl={formData.logoUrl}
+                            storeName={formData.name || 'Averion'}
+                            size="sm"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-white truncate">
+                              {formData.name || 'Averion POS'}
+                            </p>
+                            <p className="text-[10px] text-slate-400 truncate">
+                              {formData.tagline || 'Solusi Kasir Toko'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Preview 2: Topbar Header */}
+                      <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 shadow-xs space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                          Pratinjau Header POS
+                        </span>
+                        <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <BrandLogo
+                              logoType={formData.logoType}
+                              logoPreset={formData.logoPreset}
+                              logoUrl={formData.logoUrl}
+                              storeName={formData.name}
+                              size="xs"
+                            />
+                            <span className="text-xs font-bold text-slate-800 dark:text-white">
+                              {formData.name || 'Kasir'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold bg-[#00A876] text-white px-2 py-0.5 rounded-full">
+                            Online
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Preview 3: Struk Thermal */}
+                      <div className="p-3.5 rounded-2xl bg-amber-50/50 dark:bg-slate-800 text-slate-900 dark:text-white border border-amber-200 dark:border-slate-700 shadow-xs space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400 flex items-center gap-1">
+                          <ReceiptIcon className="w-3.5 h-3.5" />
+                          Pratinjau Struk Kasir
+                        </span>
+                        <div className="p-2.5 rounded-xl bg-white text-slate-900 border border-slate-300 font-mono text-[10px] text-center space-y-1 shadow-inner">
+                          <div className="flex justify-center">
+                            <BrandLogo
+                              logoType={formData.logoType}
+                              logoPreset={formData.logoPreset}
+                              logoUrl={formData.logoUrl}
+                              storeName={formData.name}
+                              size="xs"
+                            />
+                          </div>
+                          <p className="font-bold text-xs uppercase">{formData.name || 'TOKO KAMI'}</p>
+                          <p className="text-[9px] text-slate-500">{formData.address || 'Jl. Raya Toko No. 12'}</p>
+                          <div className="border-t border-dashed border-slate-400 my-1" />
+                          <p className="text-[9px] text-slate-600 font-sans">{formData.receiptFooter || 'Terima kasih atas kunjungan Anda'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 1. GATEWAY & METODE PEMBAYARAN */}
             {activeTab === 'gateway' && (
               <div className="space-y-6">
@@ -996,26 +1466,27 @@ export const SettingsPage: React.FC = () => {
               </div>
             )}
 
-            {/* 3. PRINTER STRUK */}
+            {/* 3. PRINTER STRUK & FORMAT NOTA */}
             {activeTab === 'printer' && (
               <div className="space-y-6">
-                <div className="flex items-center gap-3 p-3.5 bg-indigo-50/80 rounded-2xl border border-indigo-100">
-                  <Printer className="w-6 h-6 text-indigo-600 shrink-0" />
+                <div className="flex items-center gap-3 p-3.5 bg-[#00A876]/10 rounded-2xl border border-[#00A876]/20">
+                  <Printer className="w-6 h-6 text-[#00A876] shrink-0" />
                   <div className="space-y-0.5">
-                    <h4 className="text-sm font-bold text-indigo-950">
-                      Konfigurasi Printer Kasir &amp; Thermal POS
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Format Struk Kasir &amp; Printer Thermal POS
                     </h4>
-                    <p className="text-xs text-indigo-800">
-                      Pengaturan koneksi printer thermal Bluetooth, USB, atau cetak struk via browser
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Kustomisasi elemen struk fisik (logo toko, pesan pembuka/penutup, barcode, dan visibilitas info poin loyalitas)
                     </p>
                   </div>
                 </div>
 
-                <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-6">
+                  {/* Paper Width & General */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Lebar Kertas Struk
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Lebar Kertas Struk Thermal
                       </label>
                       <select
                         value={formData.printer?.paperWidth || '58mm'}
@@ -1028,7 +1499,7 @@ export const SettingsPage: React.FC = () => {
                             },
                           })
                         }
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#00A876] outline-none"
                       >
                         <option value="58mm">58 mm (Printer Mini / Mobile Bluetooth)</option>
                         <option value="80mm">80 mm (Printer Desktop POS Standar)</option>
@@ -1036,24 +1507,267 @@ export const SettingsPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Pesan Footer Struk
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Nama Perangkat Bluetooth (Opsional)
                       </label>
                       <input
                         type="text"
-                        value={formData.printer?.footerText || ''}
+                        value={formData.printer?.bluetoothDeviceName || ''}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
                             printer: {
                               ...formData.printer,
-                              footerText: e.target.value,
+                              bluetoothDeviceName: e.target.value,
                             },
                           })
                         }
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        placeholder="Contoh: Terima Kasih Atas Kunjungan Anda!"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-[#00A876] outline-none"
+                        placeholder="Contoh: POS-58-BT / ThermalPrinter"
                       />
+                    </div>
+                  </div>
+
+                  {/* Header & Footer Custom Messages */}
+                  <div className="space-y-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-[#00A876]" />
+                      Pesan Kustom Header &amp; Catatan Footer Struk
+                    </h5>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                          Pesan Pembuka (Custom Header Struk)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.printer?.customHeader || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              printer: {
+                                ...formData.printer,
+                                customHeader: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-[#00A876] outline-none"
+                          placeholder="Contoh: SELAMAT DATANG DI TOKO KAMI"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Ditampilkan di atas nama toko pada lembaran struk cetak.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                          Pesan Penutup (Custom Footer Struk)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.receiptFooter || formData.printer?.customFooter || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              receiptFooter: e.target.value,
+                              printer: {
+                                ...formData.printer,
+                                customFooter: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-[#00A876] outline-none"
+                          placeholder="Contoh: Barang yang sudah dibeli tidak dapat ditukar."
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Dicetak pada bagian paling bawah sebelum stempel lunas.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Format Toggles Matrix (Logo, Loyalty Points, Cashier, Barcode, etc.) */}
+                  <div className="space-y-3">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <Sliders className="w-4 h-4 text-[#00A876]" />
+                      Opsi Tampilan Elemen Struk Cetak
+                    </h5>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Toggle 1: Logo Toko */}
+                      <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            Cetak Logo Toko
+                          </p>
+                          <span className="text-[11px] text-slate-400">
+                            Tampilkan logo di bagian paling atas nota
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.printer?.printStoreLogo ?? true}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                printer: {
+                                  ...formData.printer,
+                                  printStoreLogo: e.target.checked,
+                                },
+                              })
+                            }
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5.5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00A876]"></div>
+                        </label>
+                      </div>
+
+                      {/* Toggle 2: Poin Loyalitas Member */}
+                      <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            Informasi Poin Loyalitas
+                          </p>
+                          <span className="text-[11px] text-slate-400">
+                            Sembunyikan / Tampilkan poin member pada struk
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.printer?.printCustomerPoints ?? true}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                printer: {
+                                  ...formData.printer,
+                                  printCustomerPoints: e.target.checked,
+                                },
+                              })
+                            }
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5.5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00A876]"></div>
+                        </label>
+                      </div>
+
+                      {/* Toggle 3: Nama Kasir */}
+                      <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            Cetak Nama Kasir
+                          </p>
+                          <span className="text-[11px] text-slate-400">
+                            Sertakan nama kasir yang melayani
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.printer?.printCashierName ?? true}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                printer: {
+                                  ...formData.printer,
+                                  printCashierName: e.target.checked,
+                                },
+                              })
+                            }
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5.5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00A876]"></div>
+                        </label>
+                      </div>
+
+                      {/* Toggle 4: Barcode Struk */}
+                      <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            Garis Barcode &amp; No. Nota
+                          </p>
+                          <span className="text-[11px] text-slate-400">
+                            Cetak visual barcode nota di bagian bawah
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.printer?.printBarcode ?? true}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                printer: {
+                                  ...formData.printer,
+                                  printBarcode: e.target.checked,
+                                },
+                              })
+                            }
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5.5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00A876]"></div>
+                        </label>
+                      </div>
+
+                      {/* Toggle 5: Rincian Pajak (PPN) */}
+                      <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            Rincian Pajak (PPN)
+                          </p>
+                          <span className="text-[11px] text-slate-400">
+                            Tampilkan breakdown pajak jika toko mengaktifkan PPN
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.printer?.printTaxDetails ?? true}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                printer: {
+                                  ...formData.printer,
+                                  printTaxDetails: e.target.checked,
+                                },
+                              })
+                            }
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5.5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00A876]"></div>
+                        </label>
+                      </div>
+
+                      {/* Toggle 6: Stempel Status Pembayaran */}
+                      <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            Stempel Status Bayar
+                          </p>
+                          <span className="text-[11px] text-slate-400">
+                            Cetak stempel *** LUNAS *** / *** TEMPO ***
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.printer?.printPaymentStatus ?? true}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                printer: {
+                                  ...formData.printer,
+                                  printPaymentStatus: e.target.checked,
+                                },
+                              })
+                            }
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5.5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00A876]"></div>
+                        </label>
+                      </div>
                     </div>
                   </div>
 
@@ -1061,9 +1775,9 @@ export const SettingsPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleTestPrint}
-                      className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer"
+                      className="px-4 py-2 bg-[#00A876]/10 hover:bg-[#00A876]/20 text-[#00A876] border border-[#00A876]/30 rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer"
                     >
-                      <Printer className="w-4 h-4 text-indigo-600" />
+                      <Printer className="w-4 h-4 text-[#00A876]" />
                       <span>{testPrinterSuccess ? 'Cetak Uji Berhasil!' : 'Uji Cetak Struk Kasir'}</span>
                     </button>
                   </div>
@@ -1114,102 +1828,283 @@ export const SettingsPage: React.FC = () => {
             )}
 
             {/* 5. USERS & RBAC */}
-            {activeTab === 'users' && hasRole(['super_admin']) && (
+            {activeTab === 'users' && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                      <Users className="w-4 h-4 text-indigo-600" />
-                      Manajemen Pengguna &amp; Hak Akses Kasir
-                    </h4>
-                    <p className="text-xs text-slate-500">
-                      Kelola akun Super Admin, Admin Toko, dan Kasir yang memiliki akses login
-                    </p>
+                {/* Security Banner */}
+                <div className="p-4 bg-gradient-to-r from-indigo-900/10 via-slate-900/5 to-emerald-900/10 rounded-2xl border border-indigo-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Shield className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-slate-900">
+                          Manajemen Pengguna &amp; Keamanan Kata Sandi
+                        </h4>
+                        <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          Super Admin Protected
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                        Seluruh informasi kata sandi disembunyikan dan dienkripsi secara ketat. <strong>Hanya akun dengan peran Super Admin</strong> yang berhak melihat dan mengganti kata sandi pengguna.
+                      </p>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingUser(null);
-                      setUserFormData({
-                        username: '',
-                        name: '',
-                        email: '',
-                        password: 'user123',
-                        role: 'kasir',
-                        storeId: stores[0]?.id || 'store-1',
-                      });
-                      setShowAddUserModal(true);
-                    }}
-                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Tambah Pengguna</span>
-                  </button>
+
+                  {hasRole(['super_admin']) && (
+                    <button
+                      type="button"
+                      id="btn-add-user-modal"
+                      onClick={() => {
+                        setEditingUser(null);
+                        setShowModalPassword(false);
+                        setUserFormData({
+                          username: '',
+                          name: '',
+                          email: '',
+                          password: 'user123',
+                          role: 'kasir',
+                          storeId: stores[0]?.id || 'store-1',
+                        });
+                        setShowAddUserModal(true);
+                      }}
+                      className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs shrink-0 self-start sm:self-center"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Tambah Pengguna</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {!hasRole(['super_admin']) && (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-xs font-medium flex items-center gap-2.5">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                    <span>
+                      Anda sedang melihat daftar pengguna dengan hak akses terbatas. Hanya <strong>Super Admin</strong> yang memiliki izin untuk melihat dan mengganti kata sandi.
+                    </span>
+                  </div>
+                )}
+
+                {/* Users List */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {users.map((user) => {
                     const isSelf = user.id === currentUser?.id;
+                    const isSuperAdmin = hasRole(['super_admin']);
+                    const isRevealed = !!revealedPasswords[user.id];
+                    const storeObj = stores.find((s) => s.id === user.storeId);
+                    const userPassword = user.password || 'admin123';
+
                     return (
                       <div
                         key={user.id}
-                        className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between"
+                        className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                          isSelf
+                            ? 'bg-indigo-50/40 border-indigo-200 shadow-xs'
+                            : 'bg-slate-50/80 border-slate-200 hover:border-slate-300'
+                        }`}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'}
-                            alt={user.name}
-                            className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="font-bold text-xs text-slate-900 truncate">{user.name}</p>
-                              {isSelf && (
-                                <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">
-                                  Anda
+                        {/* Top Info Row */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative shrink-0">
+                              <img
+                                src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'}
+                                alt={user.name}
+                                className="w-12 h-12 rounded-2xl object-cover border border-slate-300 shadow-xs"
+                              />
+                              <span
+                                className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${
+                                  user.active !== false ? 'bg-emerald-500' : 'bg-slate-400'
+                                }`}
+                                title={user.active !== false ? 'Akun Aktif' : 'Non-aktif'}
+                              />
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="font-bold text-xs sm:text-sm text-slate-900 truncate">
+                                  {user.name}
+                                </p>
+                                {isSelf && (
+                                  <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full border border-emerald-300">
+                                    Akun Anda
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
+                                @{user.username} &bull; <span className="text-slate-400">{user.email}</span>
+                              </p>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span
+                                  className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                                    user.role === 'super_admin'
+                                      ? 'bg-purple-100 text-purple-800 border-purple-300'
+                                      : user.role === 'admin'
+                                      ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                      : 'bg-teal-100 text-teal-800 border-teal-300'
+                                  }`}
+                                >
+                                  {user.role === 'super_admin'
+                                    ? 'SUPER ADMIN'
+                                    : user.role === 'admin'
+                                    ? 'ADMIN TOKO'
+                                    : 'KASIR POS'}
                                 </span>
+                                <span className="text-[10px] font-medium text-slate-500 flex items-center gap-1">
+                                  <Building2 className="w-3 h-3 text-slate-400" />
+                                  {storeObj?.name || 'Semua Cabang'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Quick Edit & Delete Actions (Super Admin Only) */}
+                          {isSuperAdmin && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                id={`edit-user-btn-${user.id}`}
+                                onClick={() => {
+                                  setEditingUser(user);
+                                  setShowModalPassword(false);
+                                  setUserFormData({
+                                    username: user.username,
+                                    name: user.name,
+                                    email: user.email,
+                                    password: '',
+                                    role: user.role,
+                                    storeId: user.storeId || stores[0]?.id || 'store-1',
+                                  });
+                                  setShowAddUserModal(true);
+                                }}
+                                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition cursor-pointer"
+                                title="Edit Data Pengguna"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+
+                              {!isSelf && users.length > 1 && (
+                                <button
+                                  type="button"
+                                  id={`delete-user-btn-${user.id}`}
+                                  onClick={() => {
+                                    if (window.confirm(`Hapus akun pengguna @${user.username} (${user.name})?`)) {
+                                      deleteUser(user.id);
+                                    }
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-transparent hover:border-rose-200 transition cursor-pointer"
+                                  title="Hapus Pengguna"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               )}
                             </div>
-                            <p className="text-[11px] text-slate-500 font-mono">@{user.username}</p>
-                            <span className="inline-block text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded mt-1">
-                              {user.role.toUpperCase()}
-                            </span>
-                          </div>
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingUser(user);
-                              setUserFormData({
-                                username: user.username,
-                                name: user.name,
-                                email: user.email,
-                                password: '',
-                                role: user.role,
-                                storeId: user.storeId || stores[0]?.id || 'store-1',
-                              });
-                              setShowAddUserModal(true);
-                            }}
-                            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition cursor-pointer"
-                            title="Edit Pengguna"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          {!isSelf && users.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (window.confirm(`Hapus pengguna ${user.name}?`)) {
-                                  deleteUser(user.id);
-                                }
-                              }}
-                              className="p-2 text-slate-500 hover:text-rose-600 hover:bg-white rounded-lg transition cursor-pointer"
-                              title="Hapus Pengguna"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                        {/* Password Security Information Row */}
+                        <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                              <Lock className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Kata Sandi (Password):
+                              </span>
+                              {isSuperAdmin ? (
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  {isRevealed ? (
+                                    <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 select-all">
+                                      {userPassword}
+                                    </span>
+                                  ) : (
+                                    <span className="font-mono text-xs text-slate-500 font-bold tracking-widest bg-slate-100 px-2 py-0.5 rounded-md">
+                                      ••••••••
+                                    </span>
+                                  )}
+                                  {isRevealed && (
+                                    <span className="text-[10px] text-emerald-600 font-semibold hidden sm:inline">
+                                      (Terlihat oleh Super Admin)
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <span className="font-mono text-xs text-slate-400 font-bold tracking-widest">
+                                    ••••••••
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 italic">
+                                    (Disembunyikan)
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Super Admin Password Action Buttons */}
+                          {isSuperAdmin && (
+                            <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                              {/* Show / Hide Toggle Button */}
+                              <button
+                                type="button"
+                                id={`toggle-password-btn-${user.id}`}
+                                onClick={() => togglePasswordReveal(user.id)}
+                                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
+                                  isRevealed
+                                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                                }`}
+                                title={isRevealed ? 'Sembunyikan Kata Sandi' : 'Lihat Kata Sandi'}
+                              >
+                                {isRevealed ? (
+                                  <>
+                                    <EyeOff className="w-3.5 h-3.5" />
+                                    <span>Tutup</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>Lihat</span>
+                                  </>
+                                )}
+                              </button>
+
+                              {/* Copy Password Button (Only when revealed or superadmin) */}
+                              {isRevealed && (
+                                <button
+                                  type="button"
+                                  id={`copy-password-btn-${user.id}`}
+                                  onClick={() => handleCopyPassword(user.id, user.password)}
+                                  className="px-2 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                                  title="Salin Kata Sandi"
+                                >
+                                  {copiedUserId === user.id ? (
+                                    <>
+                                      <Check className="w-3.5 h-3.5 text-emerald-700" />
+                                      <span className="text-emerald-700">Tersalin!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3.5 h-3.5" />
+                                      <span>Salin</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+
+                              {/* Quick Change Password Button */}
+                              <button
+                                type="button"
+                                id={`change-password-btn-${user.id}`}
+                                onClick={() => openChangePasswordModal(user)}
+                                className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer shadow-2xs"
+                                title="Ganti Kata Sandi Pengguna Ini"
+                              >
+                                <KeyRound className="w-3.5 h-3.5" />
+                                <span>Ganti Sandi</span>
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1288,25 +2183,88 @@ export const SettingsPage: React.FC = () => {
               </div>
             )}
 
-            {/* 7. PREFERENSI & POIN */}
+            {/* 7. PREFERENSI, TARGET PENJUALAN & POIN */}
             {activeTab === 'general' && (
               <div className="space-y-6">
-                <div className="flex items-center gap-3 p-3.5 bg-indigo-50/80 rounded-2xl border border-indigo-100">
-                  <Sliders className="w-6 h-6 text-indigo-600 shrink-0" />
+                <div className="flex items-center gap-3 p-3.5 bg-[#00A876]/10 rounded-2xl border border-[#00A876]/20">
+                  <Sliders className="w-6 h-6 text-[#00A876] shrink-0" />
                   <div className="space-y-0.5">
-                    <h4 className="text-sm font-bold text-indigo-950">
-                      Preferensi Transaksi &amp; Poin Loyalitas
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Target Omzet &amp; Poin Loyalitas Toko
                     </h4>
-                    <p className="text-xs text-indigo-800">
-                      Aturan perolehan poin member dan nilai diskon potongan harga
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Tentukan target omzet penjualan bulanan dan kalkulasi sistem perolehan poin member
                     </p>
                   </div>
                 </div>
 
-                <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                {/* Target Penjualan Bulanan Card */}
+                <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                        <Target className="w-4 h-4 text-[#00A876]" />
+                        Target Penjualan Bulanan (Sales Target)
+                      </h5>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Target nominal penjualan bulanan yang dipantau real-time pada Dashboard.
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#00A876]/10 text-[#00A876] border border-[#00A876]/20">
+                      {formatRupiah(formData.monthlySalesTarget || 50000000)} / bulan
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Nominal Target Penjualan Bulanan (Rp)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.monthlySalesTarget || 50000000}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            monthlySalesTarget: Math.max(0, Number(e.target.value) || 0),
+                          })
+                        }
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-mono font-black text-[#00A876] focus:ring-2 focus:ring-[#00A876] outline-none"
+                        placeholder="Contoh: 50000000"
+                      />
+                    </div>
+
+                    {/* Quick Preset Buttons */}
+                    <div className="flex items-center gap-2 flex-wrap pt-1">
+                      <span className="text-[11px] text-slate-400 font-medium">Pilihan Cepat:</span>
+                      {[15000000, 30000000, 50000000, 100000000, 200000000].map((nominal) => (
+                        <button
+                          key={nominal}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, monthlySalesTarget: nominal })}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                            formData.monthlySalesTarget === nominal
+                              ? 'bg-[#00A876] text-white shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                          }`}
+                        >
+                          {formatRupiah(nominal)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Loyalty Points Card */}
+                <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <Award className="w-4 h-4 text-[#00A876]" />
+                    Aturan Perolehan &amp; Tukar Poin Member
+                  </h5>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Nominal Belanja untuk 1 Poin (Rp)
                       </label>
                       <input
@@ -1318,12 +2276,12 @@ export const SettingsPage: React.FC = () => {
                             pointsRewardRatio: Number(e.target.value) || 10000,
                           })
                         }
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#00A876] outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Nilai Tukar 1 Poin (Potongan Rp)
                       </label>
                       <input
@@ -1335,7 +2293,7 @@ export const SettingsPage: React.FC = () => {
                             pointsRedeemValue: Number(e.target.value) || 100,
                           })
                         }
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#00A876] outline-none"
                       />
                     </div>
                   </div>
@@ -1434,14 +2392,26 @@ export const SettingsPage: React.FC = () => {
 
       {/* Add / Edit User Modal (for Super Admin only) */}
       {showAddUserModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in zoom-in-95 duration-150">
-            <h3 className="text-base font-bold text-slate-900">
-              {editingUser ? 'Edit Pengguna POS' : 'Tambah Pengguna Baru'}
-            </h3>
-            <form onSubmit={handleUserSubmit} className="space-y-3">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 sm:p-7 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-600" />
+                  {editingUser ? 'Edit Data Pengguna' : 'Tambah Pengguna Baru'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {editingUser ? `Kelola profil @${editingUser.username}` : 'Daftarkan akun kasir atau admin baru'}
+                </p>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                Super Admin
+              </span>
+            </div>
+
+            <form onSubmit={handleUserSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Nama Lengkap
                 </label>
                 <input
@@ -1449,81 +2419,248 @@ export const SettingsPage: React.FC = () => {
                   required
                   value={userFormData.name}
                   onChange={(e) => setUserFormData({ ...userFormData, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
                   placeholder="Contoh: Budi Santoso"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Username Login
                 </label>
                 <input
                   type="text"
                   required
                   value={userFormData.username}
-                  onChange={(e) => setUserFormData({ ...userFormData, username: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                  onChange={(e) => setUserFormData({ ...userFormData, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
                   placeholder="kasir1"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Email
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Alamat Email
                 </label>
                 <input
                   type="email"
                   required
                   value={userFormData.email}
                   onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
                   placeholder="kasir1@toko.com"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Password {editingUser && '(Kosongkan jika tidak ingin diubah)'}
-                </label>
-                <input
-                  type="password"
-                  required={!editingUser}
-                  value={userFormData.password}
-                  onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="••••••••"
-                />
+              {/* Password Input with Visibility Eye Toggle (Super Admin Only) */}
+              <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-indigo-600" />
+                    Kata Sandi {editingUser && '(Opsional / Kosongkan jika tetap)'}
+                  </label>
+                  <span className="text-[10px] text-indigo-700 font-semibold">
+                    Akses Super Admin
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showModalPassword ? 'text' : 'password'}
+                    required={!editingUser}
+                    value={userFormData.password}
+                    onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder={editingUser ? 'Masukkan sandi baru...' : 'Minimal 4 karakter'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowModalPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title={showModalPassword ? 'Sembunyikan Kata Sandi' : 'Tampilkan Kata Sandi'}
+                  >
+                    {showModalPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {editingUser
+                    ? 'Kosongkan jika tidak ingin mengubah kata sandi lama akun ini.'
+                    : 'Kata sandi awal untuk login kasir/admin.'}
+                </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Peran / Hak Akses (Role)
-                </label>
-                <select
-                  value={userFormData.role}
-                  onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value as UserRole })}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="kasir">Kasir POS (Hanya Transaksi &amp; Riwayat)</option>
-                  <option value="admin">Admin Toko (Akses Inventaris &amp; Kas)</option>
-                  <option value="super_admin">Super Admin (Akses Penuh Seluruh Sistem)</option>
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Peran (Role)
+                  </label>
+                  <select
+                    value={userFormData.role}
+                    onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value as UserRole })}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                  >
+                    <option value="kasir">Kasir POS</option>
+                    <option value="admin">Admin Cabang</option>
+                    <option value="super_admin">Super Admin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Penempatan Toko
+                  </label>
+                  <select
+                    value={userFormData.storeId}
+                    onChange={(e) => setUserFormData({ ...userFormData, storeId: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+                  >
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowAddUserModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-semibold cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-bold transition cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                  id="btn-submit-user-form"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-200 transition cursor-pointer"
                 >
-                  Simpan Pengguna
+                  {editingUser ? 'Simpan Perubahan' : 'Tambah Pengguna'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dedicated Change Password Modal (Super Admin Only) */}
+      {showChangePasswordModal && targetPasswordUser && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 sm:p-7 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Ganti Kata Sandi
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Khusus Super Admin Otorisasi
+                  </p>
+                </div>
+              </div>
+              <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                Super Admin
+              </span>
+            </div>
+
+            {/* Target User Card Preview */}
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center gap-3">
+              <img
+                src={targetPasswordUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'}
+                alt={targetPasswordUser.name}
+                className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-xs text-slate-900 truncate">
+                  {targetPasswordUser.name}
+                </p>
+                <p className="text-[11px] text-slate-500 font-mono truncate">
+                  @{targetPasswordUser.username} &bull; <span className="capitalize">{targetPasswordUser.role}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Error or Success alerts */}
+            {passwordChangeError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                <span>{passwordChangeError}</span>
+              </div>
+            )}
+            {passwordChangeSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{passwordChangeSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveChangedPassword} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Kata Sandi Baru
+                </label>
+                <div className="relative">
+                  <input
+                    type={showQuickPasswordPlain ? 'text' : 'password'}
+                    required
+                    value={newPasswordInput}
+                    onChange={(e) => {
+                      setNewPasswordInput(e.target.value);
+                      setPasswordChangeError(null);
+                    }}
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="Masukkan kata sandi baru (min 4 karakter)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickPasswordPlain((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title={showQuickPasswordPlain ? 'Sembunyikan' : 'Lihat Sandi'}
+                  >
+                    {showQuickPasswordPlain ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Ulangi Kata Sandi Baru
+                </label>
+                <input
+                  type={showQuickPasswordPlain ? 'text' : 'password'}
+                  required
+                  value={confirmPasswordInput}
+                  onChange={(e) => {
+                    setConfirmPasswordInput(e.target.value);
+                    setPasswordChangeError(null);
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="Ketik ulang kata sandi baru untuk verifikasi"
+                />
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+                <strong>Catatan Keamanan:</strong> Kata sandi baru akan langsung berlaku untuk login berikutnya. Pastikan menginformasikan kata sandi baru ini kepada pengguna bersangkutan.
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowChangePasswordModal(false)}
+                  className="px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-bold transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  id="btn-confirm-change-password"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-200 transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Simpan Kata Sandi</span>
                 </button>
               </div>
             </form>

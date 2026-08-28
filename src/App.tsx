@@ -14,6 +14,7 @@ import { ActivityLogsModal } from './components/modals/ActivityLogsModal';
 import { LicenseModal } from './components/modals/LicenseModal';
 import { GlobalSearchModal } from './components/modals/GlobalSearchModal';
 import { PromotionModal } from './components/modals/PromotionModal';
+import { BrandLogo } from './components/common/BrandLogo';
 import {
   LayoutGrid,
   Users,
@@ -42,6 +43,9 @@ import {
   Menu,
   X,
   ArrowRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ChevronLeft,
 } from 'lucide-react';
 import { TabType, UserRole } from './types';
 
@@ -60,6 +64,8 @@ const MainAppContent: React.FC = () => {
     activeStoreId,
     setActiveStoreId,
     activeStore,
+    theme,
+    toggleTheme,
   } = useStore();
 
   const [quickRestockId, setQuickRestockId] = useState<string | null>(null);
@@ -67,6 +73,14 @@ const MainAppContent: React.FC = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isStoreMenuOpen, setIsStoreMenuOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('averion_pos_sidebar_collapsed');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
@@ -74,6 +88,15 @@ const MainAppContent: React.FC = () => {
   const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    try {
+      localStorage.setItem('averion_pos_sidebar_collapsed', JSON.stringify(isSidebarCollapsed));
+    } catch {
+      // ignore
+    }
+  }, [isSidebarCollapsed]);
 
   // Sections collapse toggles
   const [isKontenOpen, setIsKontenOpen] = useState(true);
@@ -217,34 +240,104 @@ const MainAppContent: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#F4F7F9] text-slate-800 font-sans select-none">
       {/* Averion Obsidian & Emerald Sidebar (Desktop) */}
-      <aside className="hidden lg:flex w-64 bg-[#0B1320] flex-col py-5 px-4 text-white shrink-0 z-30 justify-between select-none shadow-2xl border-r border-slate-800/80">
-        {/* Top Logo & Branding */}
-        <div className="space-y-6 overflow-y-auto pr-1 scrollbar-none">
-          {/* Logo Area */}
-          <div
-            onClick={() => setActiveTab('pos')}
-            className="flex items-center gap-3 px-2 cursor-pointer transition-all active:scale-95 group"
-          >
-            {/* Averion Triangle Polygon Logo in Emerald */}
-            <div className="w-8 h-8 rounded-lg bg-[#00A876] flex items-center justify-center shadow-lg shadow-[#00A876]/30 group-hover:scale-105 transition">
-              <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[12px] border-b-white" />
+      <aside
+        className={`hidden lg:flex ${
+          isSidebarCollapsed ? 'w-20 px-2' : 'w-64 px-4'
+        } bg-[#0B1320] flex-col py-5 text-white shrink-0 z-30 justify-between select-none shadow-2xl border-r border-slate-800/80 transition-all duration-300 ease-in-out`}
+      >
+        {/* Top Logo & Branding & Nav */}
+        <div className="space-y-5 overflow-y-auto pr-0.5 scrollbar-none">
+          {/* Logo & Collapse/Expand Toggle Area */}
+          {!isSidebarCollapsed ? (
+            <div className="flex items-center justify-between px-1">
+              <div
+                onClick={() => setActiveTab('pos')}
+                className="flex items-center gap-3 cursor-pointer transition-all active:scale-95 group min-w-0"
+              >
+                <BrandLogo
+                  logoType={settings.logoType}
+                  logoPreset={settings.logoPreset}
+                  logoUrl={settings.logoUrl}
+                  storeName={settings.name}
+                  size="sm"
+                />
+                <div className="min-w-0 truncate">
+                  <h1 className="text-sm font-extrabold tracking-tight text-white leading-tight font-sans flex items-center gap-1.5 truncate">
+                    <span>{settings.name || 'Averion POS'}</span>
+                  </h1>
+                  <p className="text-[10px] text-slate-400 truncate">
+                    {settings.tagline || 'Studio POS Pro'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Sidebar Collapse Toggle Button */}
+              <button
+                type="button"
+                id="averion-collapse-sidebar-btn"
+                onClick={() => setIsSidebarCollapsed(true)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer shrink-0"
+                title="Kecilkan Menu (Icon Only)"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
             </div>
-            <div className="min-w-0">
-              <h1 className="text-lg font-extrabold tracking-tight text-white leading-tight font-sans flex items-center gap-1.5">
-                <span>Averion</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00A876]" />
-              </h1>
-              <p className="text-[10px] text-slate-400 truncate">
-                {settings.name || 'Studio POS Pro'}
-              </p>
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <div
+                onClick={() => setActiveTab('pos')}
+                className="cursor-pointer hover:scale-105 transition shrink-0"
+                title={settings.name || 'Averion POS'}
+              >
+                <BrandLogo
+                  logoType={settings.logoType}
+                  logoPreset={settings.logoPreset}
+                  logoUrl={settings.logoUrl}
+                  storeName={settings.name}
+                  size="sm"
+                />
+              </div>
+
+              {/* Sidebar Expand Toggle Button */}
+              <button
+                type="button"
+                id="averion-expand-sidebar-btn"
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                title="Perluas Menu"
+              >
+                <PanelLeftOpen className="w-4 h-4 text-[#00A876]" />
+              </button>
             </div>
-          </div>
+          )}
 
           {/* Primary Nav List */}
           <nav className="space-y-1.5 pt-1">
             {primaryNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
+
+              if (isSidebarCollapsed) {
+                return (
+                  <button
+                    key={item.id}
+                    id={`averion-sidebar-nav-${item.id}`}
+                    onClick={() => setActiveTab(item.id)}
+                    title={item.label}
+                    className={`w-full relative flex items-center justify-center p-3 rounded-xl transition-all cursor-pointer group ${
+                      isActive
+                        ? 'bg-[#00A876] text-white shadow-md shadow-[#00A876]/25 font-bold'
+                        : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                    {item.badge !== null && item.badge !== undefined && (
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#0B1320]" />
+                    )}
+                  </button>
+                );
+              }
+
               return (
                 <button
                   key={item.id}
@@ -274,148 +367,230 @@ const MainAppContent: React.FC = () => {
             })}
           </nav>
 
-          {/* Sub Section 1: KONTEN */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => setIsKontenOpen(!isKontenOpen)}
-              className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 cursor-pointer"
-            >
-              <span>KONTEN</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform ${isKontenOpen ? '' : '-rotate-90'}`}
-              />
-            </button>
-
-            {isKontenOpen && (
-              <div className="space-y-1 mt-1">
+          {/* Sub Sections */}
+          {!isSidebarCollapsed ? (
+            <>
+              {/* Sub Section 1: KONTEN */}
+              <div className="pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsDocModalOpen(true)}
-                  className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                  onClick={() => setIsKontenOpen(!isKontenOpen)}
+                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 cursor-pointer"
                 >
-                  <BookOpen className="w-4 h-4 shrink-0 text-slate-400" />
-                  <span>Dokumentasi</span>
+                  <span>KONTEN</span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform ${isKontenOpen ? '' : '-rotate-90'}`}
+                  />
                 </button>
-              </div>
-            )}
-          </div>
 
-          {/* Sub Section 2: MARKETING & GROWTH */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => setIsMarketingOpen(!isMarketingOpen)}
-              className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 cursor-pointer"
-            >
-              <span>MARKETING & GROWTH</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform ${isMarketingOpen ? '' : '-rotate-90'}`}
-              />
-            </button>
-
-            {isMarketingOpen && (
-              <div className="space-y-1 mt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsPromoModalOpen(true)}
-                  className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
-                >
-                  <Tag className="w-4 h-4 shrink-0 text-slate-400" />
-                  <span>Promosi & Diskon</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Sub Section 3: KONFIGURASI */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => setIsConfigOpen(!isConfigOpen)}
-              className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 cursor-pointer"
-            >
-              <span>KONFIGURASI</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform ${isConfigOpen ? '' : '-rotate-90'}`}
-              />
-            </button>
-
-            {isConfigOpen && (
-              <div className="space-y-1 mt-1">
-                {hasRole(['super_admin', 'admin']) && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('settings')}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
-                      activeTab === 'settings'
-                        ? 'bg-[#00A876] text-white font-bold'
-                        : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
-                    }`}
-                  >
-                    <Settings className="w-4 h-4 shrink-0 text-slate-400" />
-                    <span>Pengaturan Toko</span>
-                  </button>
+                {isKontenOpen && (
+                  <div className="space-y-1 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsDocModalOpen(true)}
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                    >
+                      <BookOpen className="w-4 h-4 shrink-0 text-slate-400" />
+                      <span>Dokumentasi</span>
+                    </button>
+                  </div>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => setIsActivityModalOpen(true)}
-                  className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
-                >
-                  <Clock className="w-4 h-4 shrink-0 text-slate-400" />
-                  <span>Activity Logs</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsLicenseModalOpen(true)}
-                  className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
-                >
-                  <ShieldCheck className="w-4 h-4 shrink-0 text-slate-400" />
-                  <span>License Pro</span>
-                </button>
               </div>
-            )}
-          </div>
+
+              {/* Sub Section 2: MARKETING & GROWTH */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsMarketingOpen(!isMarketingOpen)}
+                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 cursor-pointer"
+                >
+                  <span>MARKETING & GROWTH</span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform ${isMarketingOpen ? '' : '-rotate-90'}`}
+                  />
+                </button>
+
+                {isMarketingOpen && (
+                  <div className="space-y-1 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsPromoModalOpen(true)}
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                    >
+                      <Tag className="w-4 h-4 shrink-0 text-slate-400" />
+                      <span>Promosi & Diskon</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Sub Section 3: KONFIGURASI */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsConfigOpen(!isConfigOpen)}
+                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 cursor-pointer"
+                >
+                  <span>KONFIGURASI</span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform ${isConfigOpen ? '' : '-rotate-90'}`}
+                  />
+                </button>
+
+                {isConfigOpen && (
+                  <div className="space-y-1 mt-1">
+                    {hasRole(['super_admin', 'admin']) && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('settings')}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
+                          activeTab === 'settings'
+                            ? 'bg-[#00A876] text-white font-bold'
+                            : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+                        }`}
+                      >
+                        <Settings className="w-4 h-4 shrink-0 text-slate-400" />
+                        <span>Pengaturan Toko</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setIsActivityModalOpen(true)}
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                    >
+                      <Clock className="w-4 h-4 shrink-0 text-slate-400" />
+                      <span>Activity Logs</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsLicenseModalOpen(true)}
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                    >
+                      <ShieldCheck className="w-4 h-4 shrink-0 text-slate-400" />
+                      <span>License Pro</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
+              <button
+                type="button"
+                onClick={() => setIsDocModalOpen(true)}
+                title="Dokumentasi"
+                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+              >
+                <BookOpen className="w-5 h-5 shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsPromoModalOpen(true)}
+                title="Promosi & Diskon"
+                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+              >
+                <Tag className="w-5 h-5 shrink-0" />
+              </button>
+
+              {hasRole(['super_admin', 'admin']) && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('settings')}
+                  title="Pengaturan Toko"
+                  className={`w-full flex items-center justify-center p-3 rounded-xl transition cursor-pointer ${
+                    activeTab === 'settings'
+                      ? 'bg-[#00A876] text-white font-bold'
+                      : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+                  }`}
+                >
+                  <Settings className="w-5 h-5 shrink-0" />
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsActivityModalOpen(true)}
+                title="Activity Logs"
+                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+              >
+                <Clock className="w-5 h-5 shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsLicenseModalOpen(true)}
+                title="License Pro"
+                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+              >
+                <ShieldCheck className="w-5 h-5 shrink-0" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Bottom Workspace Card & Logout Button */}
         <div className="pt-4 border-t border-slate-800/80 space-y-3 shrink-0">
-          {/* Averion Studio / Store Card */}
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-2.5 truncate">
-              <div className="w-7 h-7 rounded-lg bg-[#00A876]/20 border border-[#00A876]/30 flex items-center justify-center text-[#00A876] shrink-0">
-                <Sparkles className="w-3.5 h-3.5" />
+          {!isSidebarCollapsed ? (
+            <>
+              {/* Averion Studio / Store Card */}
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 truncate">
+                  <div className="w-7 h-7 rounded-lg bg-[#00A876]/20 border border-[#00A876]/30 flex items-center justify-center text-[#00A876] shrink-0">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="truncate">
+                    <p className="text-xs font-bold text-white truncate leading-tight">
+                      Averion Studio
+                    </p>
+                    <span className="text-[10px] text-slate-400 truncate block">
+                      Asisten POS Toko
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDocModalOpen(true)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                  title="Bantuan"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <div className="truncate">
-                <p className="text-xs font-bold text-white truncate leading-tight">
-                  Averion Studio
-                </p>
-                <span className="text-[10px] text-slate-400 truncate block">
-                  Asisten POS Toko
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsDocModalOpen(true)}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-              title="Bantuan"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          </div>
 
-          {/* Logout Button */}
-          <button
-            type="button"
-            onClick={logout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/80 transition cursor-pointer"
-          >
-            <LogOut className="w-4 h-4 rotate-180 text-rose-400" />
-            <span>Keluar Akun</span>
-          </button>
+              {/* Logout Button */}
+              <button
+                type="button"
+                onClick={logout}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/80 transition cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 rotate-180 text-rose-400" />
+                <span>Keluar Akun</span>
+              </button>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsDocModalOpen(true)}
+                title="Averion Studio - Bantuan"
+                className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-[#00A876] hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={logout}
+                title="Keluar Akun"
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 rotate-180" />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -595,14 +770,19 @@ const MainAppContent: React.FC = () => {
               )}
             </div>
 
-            {/* Dark Mode Icon Button */}
+            {/* Dark/Light Mode Switcher Button */}
             <button
               type="button"
-              onClick={() => setIsDocModalOpen(true)}
+              id="header-theme-toggle-btn"
+              onClick={toggleTheme}
               className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-              title="Pusat Bantuan & Mode Tampilan"
+              title={theme === 'dark' ? 'Ganti ke Mode Terang (Light Mode)' : 'Ganti ke Mode Gelap (Dark Mode)'}
             >
-              <Moon className="w-4 h-4" />
+              {theme === 'dark' ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-slate-300" />
+              )}
             </button>
 
             {/* User Profile Pill with Emerald Avatar Circle (Ady Sheva / Imran Alwi) */}
@@ -694,7 +874,7 @@ const MainAppContent: React.FC = () => {
         </header>
 
         {/* Dynamic Page Views */}
-        <div className="flex-1 overflow-y-auto bg-[#F4F7F9]">
+        <div className="flex-1 overflow-y-auto bg-[#F4F7F9] dark:bg-[#070D18] text-slate-900 dark:text-slate-100 transition-colors duration-150">
           {activeTab === 'dashboard' && (
             <DashboardOverviewPage
               onOpenAddProduct={() => setActiveTab('inventory')}
@@ -728,13 +908,21 @@ const MainAppContent: React.FC = () => {
             <div className="space-y-6 overflow-y-auto">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#00A876] flex items-center justify-center shadow-lg shadow-[#00A876]/30">
-                    <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[12px] border-b-white" />
+                  <BrandLogo
+                    logoType={settings.logoType}
+                    logoPreset={settings.logoPreset}
+                    logoUrl={settings.logoUrl}
+                    storeName={settings.name}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <span className="text-sm font-extrabold text-white truncate block">
+                      {settings.name || 'Averion POS'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 truncate block">
+                      {settings.tagline || 'Studio POS Pro'}
+                    </span>
                   </div>
-                  <span className="text-lg font-extrabold flex items-center gap-1">
-                    <span>Averion</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#00A876]" />
-                  </span>
                 </div>
                 <button
                   type="button"
