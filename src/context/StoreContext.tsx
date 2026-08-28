@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Category,
   Product,
@@ -148,6 +148,13 @@ interface StoreContextType {
   resetToDefault: () => void;
   exportDatabaseJSON: () => string;
   importDatabaseJSON: (jsonString: string) => boolean;
+
+  // Cloud & Multi-Device Sync
+  isCloudSynced: boolean;
+  isSyncing: boolean;
+  lastSyncTime: string | null;
+  syncWithServer: () => Promise<boolean>;
+  pushToServer: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -303,11 +310,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const parsed: Category[] = JSON.parse(stored);
         const existingIds = new Set(parsed.map((c) => c.id));
         const missing = INITIAL_CATEGORIES.filter((c) => !existingIds.has(c.id));
-        const updated = parsed.map((cat) => {
-          const def = INITIAL_CATEGORIES.find((c) => c.id === cat.id);
-          return def ? { ...cat, name: def.name, description: def.description, color: def.color, icon: def.icon } : cat;
-        });
-        return [...updated, ...missing];
+        return [...parsed, ...missing];
       }
       return INITIAL_CATEGORIES;
     } catch {
@@ -322,11 +325,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const parsed: Product[] = JSON.parse(stored);
         const existingIds = new Set(parsed.map((p) => p.id));
         const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id));
-        const updated = parsed.map((prod) => {
-          const def = INITIAL_PRODUCTS.find((p) => p.id === prod.id);
-          return def ? { ...prod, categoryId: def.categoryId, sku: def.sku, image: prod.image || def.image, description: def.description } : prod;
-        });
-        return [...updated, ...missing];
+        return [...parsed, ...missing];
       }
       return INITIAL_PRODUCTS;
     } catch {
@@ -374,7 +373,200 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  // Sync to local storage
+  // Multi-Device Cloud Sync State
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(true);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const isInitialSyncAttempted = useRef(false);
+
+  // Sync pull from server
+  const pullFromServer = useCallback(async (): Promise<boolean> => {
+    try {
+      setIsSyncing(true);
+      const res = await fetch('/api/pos/data');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.success && json.hasData && json.data) {
+        const data = json.data;
+        if (Array.isArray(data.products) && data.products.length > 0) {
+          setProducts((prev) => {
+            const map = new Map<string, Product>();
+            // Load server products
+            data.products.forEach((p: Product) => {
+              if (p && p.id) map.set(p.id, p);
+            });
+            // Keep local products that might not be on server or are newer
+            prev.forEach((p: Product) => {
+              if (p && p.id) {
+                const existing = map.get(p.id);
+                if (!existing) {
+                  map.set(p.id, p);
+                } else if (p.updatedAt && existing.updatedAt && new Date(p.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+                  map.set(p.id, { ...existing, ...p });
+                }
+              }
+            });
+            return Array.from(map.values());
+          });
+        }
+        if (Array.isArray(data.categories) && data.categories.length > 0) {
+          setCategories((prev) => {
+            const map = new Map<string, Category>();
+            data.categories.forEach((c: Category) => {
+              if (c && c.id) map.set(c.id, c);
+            });
+            prev.forEach((c: Category) => {
+              if (c && c.id && !map.has(c.id)) map.set(c.id, c);
+            });
+            return Array.from(map.values());
+          });
+        }
+        if (Array.isArray(data.stores) && data.stores.length > 0) {
+          setStores((prev) => {
+            const map = new Map<string, Store>();
+            data.stores.forEach((s: Store) => {
+              if (s && s.id) map.set(s.id, s);
+            });
+            prev.forEach((s: Store) => {
+              if (s && s.id && !map.has(s.id)) map.set(s.id, s);
+            });
+            return Array.from(map.values());
+          });
+        }
+        if (Array.isArray(data.sales)) {
+          setSales((prev) => {
+            const map = new Map<string, Sale>();
+            data.sales.forEach((s: Sale) => {
+              if (s && s.id) map.set(s.id, s);
+            });
+            prev.forEach((s: Sale) => {
+              if (s && s.id && !map.has(s.id)) map.set(s.id, s);
+            });
+            return Array.from(map.values());
+          });
+        }
+        if (Array.isArray(data.customers)) {
+          setCustomers((prev) => {
+            const map = new Map<string, Customer>();
+            data.customers.forEach((c: Customer) => {
+              if (c && c.id) map.set(c.id, c);
+            });
+            prev.forEach((c: Customer) => {
+              if (c && c.id && !map.has(c.id)) map.set(c.id, c);
+            });
+            return Array.from(map.values());
+          });
+        }
+        if (Array.isArray(data.stockLogs)) {
+          setStockLogs((prev) => {
+            const map = new Map<string, StockLog>();
+            data.stockLogs.forEach((l: StockLog) => {
+              if (l && l.id) map.set(l.id, l);
+            });
+            prev.forEach((l: StockLog) => {
+              if (l && l.id && !map.has(l.id)) map.set(l.id, l);
+            });
+            return Array.from(map.values());
+          });
+        }
+        if (Array.isArray(data.cashShifts)) {
+          setCashShifts(data.cashShifts);
+        }
+        if (Array.isArray(data.cashExpenses)) {
+          setCashExpenses(data.cashExpenses);
+        }
+        if (data.settings) {
+          setSettingsState((prev) => ({ ...prev, ...data.settings }));
+        }
+        setIsCloudSynced(true);
+        setLastSyncTime(new Date().toLocaleTimeString('id-ID'));
+        return true;
+      } else if (json.success && !json.hasData) {
+        // Server database is empty, push current local data to populate
+        pushToServer();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('Sync from server status:', err);
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
+  // Sync push to server
+  const pushToServer = useCallback(async (): Promise<void> => {
+    try {
+      const payload = {
+        products,
+        categories,
+        stores,
+        sales,
+        customers,
+        stockLogs,
+        settings,
+        cashShifts,
+        cashExpenses,
+        users,
+      };
+      const res = await fetch('/api/pos/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        setIsCloudSynced(true);
+        setLastSyncTime(new Date().toLocaleTimeString('id-ID'));
+      }
+    } catch (err) {
+      console.warn('Failed pushing sync to server:', err);
+    }
+  }, [products, categories, stores, sales, customers, stockLogs, settings, cashShifts, cashExpenses, users]);
+
+  // Initial pull and periodic sync for multi-device live reflection
+  useEffect(() => {
+    if (!isInitialSyncAttempted.current) {
+      isInitialSyncAttempted.current = true;
+      pullFromServer();
+    }
+
+    const handleFocus = () => {
+      pullFromServer();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        pullFromServer();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Periodic check every 10 seconds for seamless PC-to-HP sync
+    const syncInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        pullFromServer();
+      }
+    }, 10000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(syncInterval);
+    };
+  }, [pullFromServer]);
+
+  // Debounced push to server whenever state changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      pushToServer();
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [products, categories, stores, sales, customers, stockLogs, settings, cashShifts, cashExpenses]);
+
+  // Sync to local storage for offline resilience
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
   }, [users]);
@@ -1052,6 +1244,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setProducts((prev) => [newProduct, ...prev]);
 
+    // Immediately persist to server
+    fetch('/api/pos/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newProduct),
+    }).catch((err) => console.warn('Product immediate server sync error:', err));
+
     if (newProduct.stock > 0) {
       const initialLog: StockLog = {
         id: `log-init-${Date.now()}`,
@@ -1099,11 +1298,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return p;
       })
     );
+
+    // Immediately persist to server
+    fetch(`/api/pos/products/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    }).catch((err) => console.warn('Product update server sync error:', err));
   };
 
   const deleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== id));
     removeFromCart(id);
+
+    // Immediately persist to server
+    fetch(`/api/pos/products/${id}`, {
+      method: 'DELETE',
+    }).catch((err) => console.warn('Product delete server sync error:', err));
   };
 
   const restockProduct = (id: string, additionalStock: number, note = 'Restock barang') => {
@@ -1500,6 +1711,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         resetToDefault,
         exportDatabaseJSON,
         importDatabaseJSON,
+        isCloudSynced,
+        isSyncing,
+        lastSyncTime,
+        syncWithServer: pullFromServer,
+        pushToServer,
       }}
     >
       {children}

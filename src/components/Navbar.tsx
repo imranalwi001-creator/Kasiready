@@ -13,6 +13,9 @@ import {
   ArrowRight,
   Clock,
   Sparkles,
+  RefreshCw,
+  Cloud,
+  CheckCircle2,
 } from 'lucide-react';
 import { formatRupiah } from '../utils/formatters';
 
@@ -29,6 +32,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenSettings, onQuickRestock }
     lowStockProducts,
     settings,
     activeCashier,
+    isCloudSynced,
+    isSyncing,
+    lastSyncTime,
+    syncWithServer,
   } = useStore();
 
   const [isAlertOpen, setIsAlertOpen] = useState(false);
@@ -236,6 +243,30 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenSettings, onQuickRestock }
                 </>
               )}
             </div>
+
+            {/* Multi-Device Cloud Sync Status Indicator */}
+            <button
+              id="cloud-sync-status-btn"
+              onClick={() => syncWithServer()}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white transition cursor-pointer group"
+              title={`Sinkronisasi Multi-Device (HP & PC). Terakhir: ${lastSyncTime || 'Baru saja'}. Klik untuk sinkronkan manual.`}
+            >
+              <div className="relative flex items-center justify-center">
+                {isSyncing ? (
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                ) : (
+                  <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                )}
+                <span
+                  className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${
+                    isSyncing ? 'bg-amber-400' : isCloudSynced ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                  }`}
+                />
+              </div>
+              <span className="hidden sm:inline font-medium text-[11px]">
+                {isSyncing ? 'Sinkron...' : 'Sync HP & PC'}
+              </span>
+            </button>
 
             {/* Cashier Badge */}
             <div className="hidden md:flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 px-3 py-1.5 rounded-xl text-xs text-slate-300">

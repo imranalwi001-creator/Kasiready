@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { Product } from '../../types';
+import { BarcodeScannerModal } from '../common/BarcodeScannerModal';
 import {
   X,
   Save,
@@ -13,6 +14,8 @@ import {
   Trash2,
   Check,
   Layers,
+  Camera,
+  Smartphone,
 } from 'lucide-react';
 
 interface ProductModalProps {
@@ -94,9 +97,20 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [imageTab, setImageTab] = useState<'upload' | 'preset' | 'url'>('upload');
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState<boolean>(false);
+
+  // Track modal open transitions so form is ONLY initialized once upon opening
+  const wasOpenRef = useRef<boolean>(false);
+  const prevEditIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
+    const isOpening = isOpen && !wasOpenRef.current;
+    const isEditTargetChanged = isOpen && productToEdit?.id !== prevEditIdRef.current;
+
+    if (isOpening || isEditTargetChanged) {
+      wasOpenRef.current = true;
+      prevEditIdRef.current = productToEdit?.id || null;
+
       if (productToEdit) {
         setStoreId(productToEdit.storeId || activeStoreId);
         setName(productToEdit.name);
@@ -125,8 +139,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         setUploadPreview(defaultImg);
         setDescription('');
       }
+    } else if (!isOpen) {
+      wasOpenRef.current = false;
+      prevEditIdRef.current = null;
     }
-  }, [isOpen, productToEdit, categories, activeStoreId]);
+  }, [isOpen, productToEdit]);
 
   if (!isOpen) return null;
 
@@ -302,14 +319,25 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <label className="text-xs font-bold text-slate-700">
                   Kode SKU / Barcode *
                 </label>
-                <button
-                  type="button"
-                  onClick={handleGenerateSku}
-                  className="text-[10px] text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-0.5 cursor-pointer"
-                >
-                  <Sparkles className="w-2.5 h-2.5" />
-                  Auto SKU
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsBarcodeScannerOpen(true)}
+                    className="text-[11px] text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 cursor-pointer transition"
+                    title="Pindai barcode fisik barang menggunakan kamera HP"
+                  >
+                    <Camera className="w-3 h-3 text-emerald-600" />
+                    <span>Scan Kamera HP</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGenerateSku}
+                    className="text-[11px] text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    Auto SKU
+                  </button>
+                </div>
               </div>
               <div className="relative">
                 <Barcode className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -625,6 +653,19 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Barcode Scanner Modal for HP Camera Scanning */}
+      <BarcodeScannerModal
+        isOpen={isBarcodeScannerOpen}
+        onClose={() => setIsBarcodeScannerOpen(false)}
+        initialMode="single"
+        modalTitle="Pindai Barcode Produk"
+        modalSubtitle="Arahkan kamera HP ke barcode kemasan barang untuk mengisi otomatis SKU"
+        onScan={(scannedSku) => {
+          setSku(scannedSku);
+          setIsBarcodeScannerOpen(false);
+        }}
+      />
     </div>
   );
 };
