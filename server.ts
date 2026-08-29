@@ -277,20 +277,24 @@ app.get('/api/pos/products', (req, res) => {
 });
 
 // POST single product (Create)
-app.post('/api/pos/products', (req, res) => {
+app.post('/api/pos/products', async (req, res) => {
   try {
     const newProduct = req.body;
     if (!newProduct || !newProduct.name) {
       return res.status(400).json({ success: false, message: 'Nama produk wajib diisi' });
     }
 
-    const db = loadDatabaseFromDisk() || { products: [] };
+    let db = (await loadDatabaseFromTurso()) || loadDatabaseFromDisk() || { products: [] };
     const products = Array.isArray(db.products) ? [...db.products] : [];
     
-    // Add product
-    products.unshift(newProduct);
-    db.products = products;
+    // Remove if exists and add to top
+    const filtered = products.filter((p: any) => p.id !== newProduct.id);
+    filtered.unshift(newProduct);
+    db.products = filtered;
+    db.updatedAt = new Date().toISOString();
+
     saveDatabaseToDisk(db);
+    await saveDatabaseToTurso(db);
 
     res.json({ success: true, product: newProduct });
   } catch (err: any) {
@@ -299,11 +303,11 @@ app.post('/api/pos/products', (req, res) => {
 });
 
 // PUT single product (Update)
-app.put('/api/pos/products/:id', (req, res) => {
+app.put('/api/pos/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    const db = loadDatabaseFromDisk() || { products: [] };
+    let db = (await loadDatabaseFromTurso()) || loadDatabaseFromDisk() || { products: [] };
     const products = Array.isArray(db.products) ? [...db.products] : [];
     
     const index = products.findIndex((p: any) => p.id === id);
@@ -313,7 +317,10 @@ app.put('/api/pos/products/:id', (req, res) => {
 
     products[index] = { ...products[index], ...updates, updatedAt: new Date().toISOString() };
     db.products = products;
+    db.updatedAt = new Date().toISOString();
+
     saveDatabaseToDisk(db);
+    await saveDatabaseToTurso(db);
 
     res.json({ success: true, product: products[index] });
   } catch (err: any) {
@@ -322,14 +329,17 @@ app.put('/api/pos/products/:id', (req, res) => {
 });
 
 // DELETE single product (Delete)
-app.delete('/api/pos/products/:id', (req, res) => {
+app.delete('/api/pos/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const db = loadDatabaseFromDisk() || { products: [] };
+    let db = (await loadDatabaseFromTurso()) || loadDatabaseFromDisk() || { products: [] };
     const products = Array.isArray(db.products) ? [...db.products] : [];
     
     db.products = products.filter((p: any) => p.id !== id);
+    db.updatedAt = new Date().toISOString();
+
     saveDatabaseToDisk(db);
+    await saveDatabaseToTurso(db);
 
     res.json({ success: true, message: 'Produk berhasil dihapus' });
   } catch (err: any) {

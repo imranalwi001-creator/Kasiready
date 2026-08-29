@@ -261,17 +261,19 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       html5QrCodeRef.current = qrScanner;
 
       const scanConfig = {
-        fps: 22,
+        fps: 28,
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const w = Math.floor(viewfinderWidth * 0.9);
-          const h = Math.floor(viewfinderHeight * 0.62);
-          return { width: Math.max(260, w), height: Math.max(150, h) };
+          // Optimized horizontal guide for Indonesian 1D retail barcodes (EAN-13, UPC, Code-128)
+          const w = Math.min(Math.floor(viewfinderWidth * 0.92), 400);
+          const h = Math.min(Math.floor(viewfinderHeight * 0.58), 200);
+          return { width: Math.max(260, w), height: Math.max(140, h) };
         },
         aspectRatio: 1.333333,
         videoConstraints: {
           facingMode: { ideal: facingMode },
           width: { ideal: 1920, min: 1280 },
           height: { ideal: 1080, min: 720 },
+          advanced: [{ focusMode: 'continuous' }] as any,
         },
       };
 

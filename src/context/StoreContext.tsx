@@ -1379,12 +1379,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setProducts((prev) => [newProduct, ...prev]);
 
-    // Immediately persist to server
+    // Immediately persist to server & Turso cloud
     fetch('/api/pos/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newProduct),
-    }).catch((err) => console.warn('Product immediate server sync error:', err));
+    })
+      .then(() => setTimeout(() => pushToServer(), 300))
+      .catch((err) => console.warn('Product immediate server sync error:', err));
 
     if (newProduct.stock > 0) {
       const initialLog: StockLog = {
@@ -1434,22 +1436,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
 
-    // Immediately persist to server
+    // Immediately persist to server & Turso cloud
     fetch(`/api/pos/products/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
-    }).catch((err) => console.warn('Product update server sync error:', err));
+    })
+      .then(() => setTimeout(() => pushToServer(), 300))
+      .catch((err) => console.warn('Product update server sync error:', err));
   };
 
   const deleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== id));
     removeFromCart(id);
 
-    // Immediately persist to server
+    // Immediately persist to server & Turso cloud
     fetch(`/api/pos/products/${id}`, {
       method: 'DELETE',
-    }).catch((err) => console.warn('Product delete server sync error:', err));
+    })
+      .then(() => setTimeout(() => pushToServer(), 300))
+      .catch((err) => console.warn('Product delete server sync error:', err));
   };
 
   const restockProduct = (id: string, additionalStock: number, note = 'Restock barang') => {
