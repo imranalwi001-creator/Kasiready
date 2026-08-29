@@ -658,12 +658,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       <BarcodeScannerModal
         isOpen={isBarcodeScannerOpen}
         onClose={() => setIsBarcodeScannerOpen(false)}
-        initialMode="single"
-        modalTitle="Pindai Barcode Produk"
+        mode="product-input"
+        modalTitle="Pindai Barcode Produk Baru"
         modalSubtitle="Arahkan kamera HP ke barcode kemasan barang untuk mengisi otomatis SKU"
         onScan={(scannedSku) => {
           setSku(scannedSku);
-          setIsBarcodeScannerOpen(false);
         }}
       />
     </div>

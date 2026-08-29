@@ -831,6 +831,11 @@ export const POSPage: React.FC = () => {
         isOpen={isBarcodeScannerOpen}
         onClose={() => setIsBarcodeScannerOpen(false)}
         onScan={handleBarcodeScanned}
+        onProceedToCheckout={() => {
+          setIsBarcodeScannerOpen(false);
+          setIsCheckoutOpen(true);
+        }}
+        mode="pos"
       />
 
       {/* Checkout Modal */}

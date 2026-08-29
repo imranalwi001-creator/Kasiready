@@ -7,28 +7,35 @@ import { playScanBeep } from '../../utils/soundNotifications';
 import {
   X,
   Camera,
-  Search,
-  Printer,
   Flashlight,
   FlipHorizontal,
   Volume2,
   VolumeX,
   CheckCircle2,
   AlertTriangle,
-  Zap,
-  Layers,
-  ShoppingBag,
+  CreditCard,
+  Plus,
+  Minus,
+  Trash2,
+  ArrowRight,
   RefreshCw,
-  Smartphone,
-  Info,
+  Barcode,
+  ShoppingBag,
+  PlusCircle,
+  Keyboard,
+  Check,
 } from 'lucide-react';
+
+export type ScannerUsageMode = 'pos' | 'product-input';
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onScan?: (skuOrCode: string) => void;
   onScanSuccess?: (skuOrCode: string) => void;
-  initialMode?: 'continuous' | 'single';
+  onProceedToCheckout?: () => void;
+  onAddNewProductWithBarcode?: (barcode: string) => void;
+  mode?: ScannerUsageMode;
   modalTitle?: string;
   modalSubtitle?: string;
 }
@@ -64,14 +71,23 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   onClose,
   onScan,
   onScanSuccess,
-  initialMode = 'continuous',
-  modalTitle = 'Pindai Barcode Produk',
-  modalSubtitle = 'Arahkan kamera HP ke barcode kemasan barang / rokok / snack',
+  onProceedToCheckout,
+  onAddNewProductWithBarcode,
+  mode = 'pos',
+  modalTitle,
+  modalSubtitle,
 }) => {
-  const { products, activeStoreId, settings } = useStore();
+  const {
+    products,
+    activeStoreId,
+    settings,
+    cart,
+    cartTotals,
+    addToCart,
+    updateCartQty,
+    removeFromCart,
+  } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'camera' | 'manual' | 'print'>('camera');
-  const [scannerMode, setScannerMode] = useState<'continuous' | 'single'>(initialMode);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraStarting, setIsCameraStarting] = useState<boolean>(false);
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
@@ -80,35 +96,32 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const [torchEnabled, setTorchEnabled] = useState<boolean>(false);
   const [hasTorchSupport, setHasTorchSupport] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const [cameraDevices, setCameraDevices] = useState<Array<{ id: string; label: string }>>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
-  const [manualCode, setManualCode] = useState<string>('');
+  // Manual fallback toggle & input
+  const [showManualInput, setShowManualInput] = useState<boolean>(false);
+  const [manualBarcode, setManualBarcode] = useState<string>('');
+
+  // Last scanned item feedback
   const [lastDetectedCode, setLastDetectedCode] = useState<string | null>(null);
-  const [lastScannedProduct, setLastScannedProduct] = useState<Product | null>(null);
-  const [sessionScanCount, setSessionScanCount] = useState<number>(0);
-  const [recentScans, setRecentScans] = useState<Array<{ code: string; name?: string; time: string }>>([]);
+  const [lastMatchedProduct, setLastMatchedProduct] = useState<Product | null>(null);
+  const [isNotFoundWarning, setIsNotFoundWarning] = useState<boolean>(false);
   const [scanSuccessPulse, setScanSuccessPulse] = useState<boolean>(false);
-
-  const [selectedProductForPrint, setSelectedProductForPrint] = useState<Product | null>(null);
 
   // References for Html5Qrcode Scanner Engine
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const isStartingRef = useRef<boolean>(false);
   const lastScannedCodeRef = useRef<string>('');
   const lastScannedTimeRef = useRef<number>(0);
-  const containerId = 'pos-html5qr-scanner-box';
+  const containerId = 'pos-pro-scanner-box';
 
-  const storeProducts = products.filter((p) => !activeStoreId || p.storeId === activeStoreId);
-
-  // Dispatch callback to parent
-  const emitScan = useCallback(
-    (code: string) => {
-      if (onScan) onScan(code);
-      if (onScanSuccess) onScanSuccess(code);
-    },
-    [onScan, onScanSuccess]
+  const branchProducts = products.filter(
+    (p) => !activeStoreId || p.storeId === activeStoreId
   );
+
+  // Find item in cart for the last matched product
+  const lastCartItem = lastMatchedProduct
+    ? cart.find((item) => item.product.id === lastMatchedProduct.id)
+    : null;
 
   // Handle successful barcode reading
   const handleBarcodeDetected = useCallback(
@@ -116,57 +129,70 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       const cleanCode = decodedText.trim();
       if (!cleanCode) return;
 
-      // Debounce duplicate scans within 1.2s if identical
+      // Debounce duplicate scans within 1.0s if identical
       const now = Date.now();
-      if (cleanCode === lastScannedCodeRef.current && now - lastScannedTimeRef.current < 1200) {
+      if (
+        cleanCode === lastScannedCodeRef.current &&
+        now - lastScannedTimeRef.current < 1000
+      ) {
         return;
       }
       lastScannedCodeRef.current = cleanCode;
       lastScannedTimeRef.current = now;
 
-      // Visual pulse & audio haptic
-      setLastDetectedCode(cleanCode);
-      setScanSuccessPulse(true);
-      setTimeout(() => setScanSuccessPulse(false), 900);
-
+      // Haptic & Audio
       if (soundEnabled) {
         playScanBeep(settings.audioNotification?.volume || 85);
       }
       if (hapticEnabled) {
-        triggerHaptic([70, 40, 70]);
+        triggerHaptic([60, 30, 60]);
       }
 
+      setLastDetectedCode(cleanCode);
+      setScanSuccessPulse(true);
+      setTimeout(() => setScanSuccessPulse(false), 800);
+
       // Match product in catalog
-      const matched = storeProducts.find(
+      const matched = branchProducts.find(
         (p) =>
           p.sku.toLowerCase() === cleanCode.toLowerCase() ||
           p.name.toLowerCase() === cleanCode.toLowerCase()
       );
-      setLastScannedProduct(matched || null);
-      setSessionScanCount((prev) => prev + 1);
 
-      setRecentScans((prev) => [
-        {
-          code: cleanCode,
-          name: matched ? matched.name : undefined,
-          time: new Date().toLocaleTimeString('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          }),
-        },
-        ...prev.slice(0, 7),
-      ]);
+      if (mode === 'pos') {
+        if (matched) {
+          setLastMatchedProduct(matched);
+          setIsNotFoundWarning(false);
 
-      emitScan(cleanCode);
+          if (matched.stock > 0) {
+            addToCart(matched);
+          }
+        } else {
+          setLastMatchedProduct(null);
+          setIsNotFoundWarning(true);
+        }
 
-      if (scannerMode === 'single') {
-        setTimeout(() => {
-          onClose();
-        }, 550);
+        if (onScan) onScan(cleanCode);
+        if (onScanSuccess) onScanSuccess(cleanCode);
+      } else {
+        // Product Input mode (Adding or editing product)
+        setLastMatchedProduct(matched || null);
+        setIsNotFoundWarning(!matched);
+
+        if (onScan) onScan(cleanCode);
+        if (onScanSuccess) onScanSuccess(cleanCode);
       }
     },
-    [soundEnabled, hapticEnabled, settings.audioNotification?.volume, storeProducts, scannerMode, emitScan, onClose]
+    [
+      soundEnabled,
+      hapticEnabled,
+      settings.audioNotification?.volume,
+      branchProducts,
+      mode,
+      addToCart,
+      onScan,
+      onScanSuccess,
+    ]
   );
 
   // Stop camera helper
@@ -190,7 +216,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
   // Initialize and start camera
   const startCamera = useCallback(async () => {
-    if (!isOpen || activeTab !== 'camera') return;
+    if (!isOpen) return;
     if (isStartingRef.current) return;
 
     isStartingRef.current = true;
@@ -211,13 +237,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     }
 
     try {
-      // Enumerate camera devices
-      const devices = await Html5Qrcode.getCameras().catch(() => []);
-      if (devices && devices.length > 0) {
-        setCameraDevices(devices.map((d) => ({ id: d.id, label: d.label })));
-      }
-
-      // Check if target container exists in DOM
       const targetElement = document.getElementById(containerId);
       if (!targetElement) {
         isStartingRef.current = false;
@@ -235,16 +254,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
       html5QrCodeRef.current = qrScanner;
 
-      const cameraSelection = selectedDeviceId
-        ? { deviceId: { exact: selectedDeviceId } }
-        : { facingMode: facingMode };
-
       const scanConfig = {
-        fps: 20,
+        fps: 22,
         qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const w = Math.floor(viewfinderWidth * 0.88);
-          const h = Math.floor(viewfinderHeight * 0.65);
-          return { width: Math.max(260, w), height: Math.max(160, h) };
+          const w = Math.floor(viewfinderWidth * 0.9);
+          const h = Math.floor(viewfinderHeight * 0.62);
+          return { width: Math.max(260, w), height: Math.max(150, h) };
         },
         aspectRatio: 1.333333,
         videoConstraints: {
@@ -255,23 +270,26 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       };
 
       await qrScanner.start(
-        cameraSelection,
+        { facingMode },
         scanConfig,
         (decodedText) => {
           handleBarcodeDetected(decodedText);
         },
         () => {
-          // Ignore periodic frame decode misses
+          // ignore periodic frame decode misses
         }
       );
 
-      // Check torch support on the video track
+      // Check torch support
       try {
-        const stream = (targetElement.querySelector('video') as HTMLVideoElement)?.srcObject as MediaStream;
+        const stream = (targetElement.querySelector('video') as HTMLVideoElement)
+          ?.srcObject as MediaStream;
         if (stream) {
           const track = stream.getVideoTracks()[0];
           if (track) {
-            const capabilities = track.getCapabilities ? (track.getCapabilities() as any) : null;
+            const capabilities = track.getCapabilities
+              ? (track.getCapabilities() as any)
+              : null;
             if (capabilities && capabilities.torch) {
               setHasTorchSupport(true);
             }
@@ -290,40 +308,46 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       setIsCameraActive(false);
       isStartingRef.current = false;
 
-      let msg = 'Kamera tidak dapat diakses atau izin ditolak browser.';
+      let msg = 'Kamera tidak dapat diakses atau izin ditolak.';
       if (err?.name === 'NotAllowedError' || err?.message?.includes('Permission')) {
-        msg = 'Izin kamera ditolak. Silakan izinkan akses kamera di pengaturan browser.';
+        msg = 'Izin kamera ditolak browser. Berikan izin kamera di pengaturan browser.';
       } else if (err?.name === 'NotFoundError') {
-        msg = 'Tidak ada perangkat kamera yang terdeteksi di smartphone.';
+        msg = 'Tidak ada perangkat kamera yang terdeteksi.';
       }
       setCameraError(msg);
     }
-  }, [isOpen, activeTab, selectedDeviceId, facingMode, handleBarcodeDetected]);
+  }, [isOpen, facingMode, handleBarcodeDetected]);
 
-  // Lifecycle effect
+  // Lifecycle
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (isOpen && activeTab === 'camera') {
+    if (isOpen) {
       timer = setTimeout(() => {
         startCamera();
       }, 150);
     } else {
       stopCamera();
+      setLastDetectedCode(null);
+      setLastMatchedProduct(null);
+      setIsNotFoundWarning(false);
+      setShowManualInput(false);
+      setManualBarcode('');
     }
 
     return () => {
       clearTimeout(timer);
       stopCamera();
     };
-  }, [isOpen, activeTab, selectedDeviceId, facingMode]);
+  }, [isOpen, facingMode]);
 
-  // Toggle Torch / Lampu Senter HP
+  // Toggle Flashlight / Torch
   const toggleTorch = async () => {
     const targetElement = document.getElementById(containerId);
     if (!targetElement) return;
 
     try {
-      const stream = (targetElement.querySelector('video') as HTMLVideoElement)?.srcObject as MediaStream;
+      const stream = (targetElement.querySelector('video') as HTMLVideoElement)
+        ?.srcObject as MediaStream;
       if (!stream) return;
       const track = stream.getVideoTracks()[0];
       if (!track) return;
@@ -340,541 +364,528 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     }
   };
 
-  // Flip Camera (Front / Back)
+  // Flip Camera
   const handleFlipCamera = () => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
-    setSelectedDeviceId('');
     if (hapticEnabled) triggerHaptic(40);
   };
 
-  // Manual code submit
+  // Submit manual barcode
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualCode.trim()) return;
-    handleBarcodeDetected(manualCode.trim());
-    setManualCode('');
+    if (!manualBarcode.trim()) return;
+    handleBarcodeDetected(manualBarcode.trim());
+    setManualBarcode('');
+  };
+
+  // Quantity controls for last matched item
+  const handleIncreaseQty = () => {
+    if (!lastMatchedProduct) return;
+    const currentQty = lastCartItem ? lastCartItem.quantity : 0;
+    if (currentQty < lastMatchedProduct.stock) {
+      if (lastCartItem) {
+        updateCartQty(lastMatchedProduct.id, currentQty + 1);
+      } else {
+        addToCart(lastMatchedProduct, 1);
+      }
+      if (soundEnabled) playScanBeep(settings.audioNotification?.volume || 85);
+      if (hapticEnabled) triggerHaptic(40);
+    }
+  };
+
+  const handleDecreaseQty = () => {
+    if (!lastMatchedProduct || !lastCartItem) return;
+    if (lastCartItem.quantity > 1) {
+      updateCartQty(lastMatchedProduct.id, lastCartItem.quantity - 1);
+    } else {
+      removeFromCart(lastMatchedProduct.id);
+    }
+    if (hapticEnabled) triggerHaptic(40);
+  };
+
+  // Direct checkout action
+  const handleProceedToPayment = () => {
+    if (cartTotals.itemCount === 0) return;
+    onClose();
+    if (onProceedToCheckout) {
+      onProceedToCheckout();
+    }
   };
 
   if (!isOpen) return null;
 
+  const defaultTitle =
+    mode === 'pos' ? 'Pindai Barcode Kasir' : 'Pindai Barcode Produk';
+  const headerTitle = modalTitle || defaultTitle;
+
   return (
     <div
-      id="mobile-barcode-scanner-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto"
+      id="pro-barcode-scanner-backdrop"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        id="mobile-barcode-scanner-card"
+        id="pro-barcode-scanner-card"
         className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150 my-auto flex flex-col max-h-[96vh]"
       >
-        {/* Header with High-Contrast Mobile Status */}
+        {/* Top Header: Clean, High-Contrast POS Header */}
         <div className="bg-slate-900 text-white px-4 sm:px-5 py-3.5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-xs">
-              <Smartphone className="w-5 h-5" />
+              {mode === 'pos' ? (
+                <ShoppingBag className="w-5 h-5" />
+              ) : (
+                <Barcode className="w-5 h-5" />
+              )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-sm sm:text-base truncate">{modalTitle}</h3>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                  HD 1D/2D
-                </span>
+                <h3 className="font-extrabold text-sm sm:text-base truncate">
+                  {headerTitle}
+                </h3>
+                {mode === 'pos' && cartTotals.itemCount > 0 && (
+                  <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 shrink-0">
+                    {cartTotals.totalUnits} Item ({formatRupiah(cartTotals.subtotal)})
+                  </span>
+                )}
               </div>
-              <p className="text-[11px] text-slate-400 truncate">{modalSubtitle}</p>
+              <p className="text-[11px] text-slate-400 truncate">
+                {modalSubtitle ||
+                  (mode === 'pos'
+                    ? 'Arahkan kamera ke barcode kemasan barang belanjaan'
+                    : 'Arahkan kamera ke barcode kemasan barang untuk mengisi SKU')}
+              </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            id="btn-close-barcode-modal"
-            className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition cursor-pointer shrink-0"
-            title="Tutup Scanner"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Tab Navigation & Mode Switcher */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 sm:px-4 pt-2 gap-2 text-xs font-bold shrink-0">
-          <div className="flex gap-1">
+          {/* Controls: Torch, Flip, Sound, Close */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {hasTorchSupport && (
+              <button
+                type="button"
+                onClick={toggleTorch}
+                className={`p-2 rounded-xl border transition cursor-pointer ${
+                  torchEnabled
+                    ? 'bg-amber-400 border-amber-500 text-slate-950 shadow-md shadow-amber-200'
+                    : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white'
+                }`}
+                title="Lampu Senter / Flash"
+              >
+                <Flashlight className="w-4 h-4" />
+              </button>
+            )}
+
             <button
               type="button"
-              id="tab-camera-scan"
-              onClick={() => setActiveTab('camera')}
-              className={`pb-2.5 px-3 border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'camera'
-                  ? 'border-indigo-600 text-indigo-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
+              onClick={handleFlipCamera}
+              className="p-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+              title="Putar Kamera Depan / Belakang"
             >
-              <Camera className="w-3.5 h-3.5" />
-              <span>Kamera HP</span>
+              <FlipHorizontal className="w-4 h-4" />
             </button>
+
             <button
               type="button"
-              id="tab-manual-search"
-              onClick={() => setActiveTab('manual')}
-              className={`pb-2.5 px-3 border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'manual'
-                  ? 'border-indigo-600 text-indigo-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`p-2 rounded-xl border transition cursor-pointer ${
+                soundEnabled
+                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                  : 'border-slate-700 bg-slate-800 text-slate-400'
               }`}
+              title="Bunyi Beep Scanner"
             >
-              <Search className="w-3.5 h-3.5" />
-              <span>Ketik / Pilih</span>
+              {soundEnabled ? (
+                <Volume2 className="w-4 h-4" />
+              ) : (
+                <VolumeX className="w-4 h-4" />
+              )}
             </button>
+
             <button
-              type="button"
-              id="tab-print-labels"
-              onClick={() => {
-                setActiveTab('print');
-                if (!selectedProductForPrint && storeProducts.length > 0) {
-                  setSelectedProductForPrint(storeProducts[0]);
-                }
-              }}
-              className={`pb-2.5 px-3 border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'print'
-                  ? 'border-indigo-600 text-indigo-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
+              onClick={onClose}
+              id="btn-close-scanner-modal"
+              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition cursor-pointer"
+              title="Tutup Scanner"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Label Rak</span>
-              <span className="sm:hidden">Label</span>
+              <X className="w-5 h-5" />
             </button>
           </div>
+        </div>
 
-          {/* Continuous / Single Mode Pill */}
-          {activeTab === 'camera' && (
-            <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-xl text-[11px] mb-2">
-              <button
-                type="button"
-                id="mode-continuous-btn"
-                onClick={() => setScannerMode('continuous')}
-                className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer flex items-center gap-1 ${
-                  scannerMode === 'continuous'
-                    ? 'bg-white text-indigo-700 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+        {/* Viewfinder Frame Container */}
+        <div className="relative aspect-4/3 w-full bg-slate-950 overflow-hidden shrink-0">
+          {/* HTML5 QR Code Mount Container */}
+          <div
+            id={containerId}
+            className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover"
+          />
+
+          {/* Loading Camera */}
+          {isCameraStarting && (
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-2.5 z-20">
+              <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" />
+              <p className="text-xs font-bold text-slate-200">
+                Mengaktifkan Kamera Pemindai...
+              </p>
+              <span className="text-[10px] text-slate-400">
+                Posisikan barcode di dalam kotak garis laser
+              </span>
+            </div>
+          )}
+
+          {/* Red Laser Viewfinder Overlay */}
+          {isCameraActive && (
+            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-3 z-10">
+              <div
+                className={`relative w-64 sm:w-72 h-32 sm:h-36 border-2 rounded-2xl flex items-center justify-center transition-all ${
+                  scanSuccessPulse
+                    ? 'border-emerald-400 bg-emerald-500/20 shadow-[0_0_35px_rgba(52,211,153,0.7)]'
+                    : 'border-indigo-400/90 bg-indigo-500/5 shadow-2xl'
                 }`}
-                title="Mode Beruntun: Tetap buka kamera untuk scan banyak barang berturut-turut"
               >
-                <Layers className="w-3 h-3" />
-                <span>Beruntun</span>
-              </button>
-              <button
-                type="button"
-                id="mode-single-btn"
-                onClick={() => setScannerMode('single')}
-                className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                  scannerMode === 'single'
-                    ? 'bg-white text-indigo-700 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-                title="Mode Sekali: Otomatis tutup setelah 1 barang terdeteksi"
-              >
-                <span>1x Scan</span>
-              </button>
+                {/* Corner Marks */}
+                <div className="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-indigo-400 -mt-1 -ml-1 rounded-tl-xl" />
+                <div className="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-indigo-400 -mt-1 -mr-1 rounded-tr-xl" />
+                <div className="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-indigo-400 -mb-1 -ml-1 rounded-bl-xl" />
+                <div className="absolute bottom-0 right-0 w-5 h-5 border-b-4 border-r-4 border-indigo-400 -mb-1 -mr-1 rounded-br-lg" />
+
+                {/* Laser Line */}
+                <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-rose-500 to-transparent shadow-[0_0_14px_#f43f5e] animate-pulse" />
+              </div>
+            </div>
+          )}
+
+          {/* Floating Top Banner on Scan */}
+          {lastDetectedCode && (
+            <div
+              className={`absolute top-2 inset-x-3 p-2.5 rounded-2xl text-xs font-bold shadow-xl animate-in slide-in-from-top-2 duration-150 flex items-center justify-between gap-2 z-20 ${
+                lastMatchedProduct
+                  ? 'bg-emerald-600 text-white'
+                  : isNotFoundWarning
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-indigo-700 text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {lastMatchedProduct ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-amber-200 shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <span className="font-mono text-xs opacity-90">
+                    {lastDetectedCode}
+                  </span>
+                  <p className="text-[11px] truncate font-semibold">
+                    {lastMatchedProduct
+                      ? `${lastMatchedProduct.name} (${formatRupiah(lastMatchedProduct.price)})`
+                      : 'Barcode belum terdaftar di toko'}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[10px] font-black bg-black/25 px-2 py-0.5 rounded-lg shrink-0">
+                {mode === 'pos' ? 'Kasir' : 'Input SKU'}
+              </span>
+            </div>
+          )}
+
+          {/* Camera Error Message */}
+          {cameraError && !isCameraStarting && (
+            <div className="absolute inset-0 bg-slate-900/95 p-5 text-center text-slate-300 space-y-3 z-30 flex flex-col items-center justify-center">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center mx-auto text-amber-400">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-extrabold text-white mb-1">
+                  Kamera Tidak Dapat Diakses
+                </h4>
+                <p className="text-[11px] text-slate-400 max-w-xs">{cameraError}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Coba Lagi</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowManualInput(true)}
+                  className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Keyboard className="w-3.5 h-3.5" />
+                  <span>Ketik Manual</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Tab 1: Live Mobile Camera Viewport */}
-        {activeTab === 'camera' && (
-          <div className="p-4 sm:p-5 space-y-3.5 overflow-y-auto flex-1">
-            {/* Viewfinder Frame */}
-            <div
-              className={`relative aspect-4/3 w-full bg-slate-950 rounded-2xl overflow-hidden shadow-inner border-2 transition-all ${
-                scanSuccessPulse ? 'border-emerald-400 ring-4 ring-emerald-400/40' : 'border-slate-800'
-              }`}
+        {/* Collapsible Manual Barcode Input */}
+        {showManualInput && (
+          <form
+            onSubmit={handleManualSubmit}
+            className="p-3 bg-slate-100 border-b border-slate-200 flex gap-2 animate-in slide-in-from-top-1"
+          >
+            <input
+              type="text"
+              value={manualBarcode}
+              onChange={(e) => setManualBarcode(e.target.value)}
+              placeholder="Ketik barcode / SKU barang..."
+              className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+              autoFocus
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer"
             >
-              {/* HTML5 QR Code Mount Container */}
-              <div id={containerId} className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover" />
+              Cari
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowManualInput(false)}
+              className="p-2 text-slate-500 hover:text-slate-700 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </form>
+        )}
 
-              {/* Loading / Starting Indicator */}
-              {isCameraStarting && (
-                <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-2.5 z-20">
-                  <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" />
-                  <p className="text-xs font-bold text-slate-200">Mengaktifkan Sensor Kamera HP...</p>
-                  <span className="text-[10px] text-slate-400">Pastikan izin akses kamera diberikan</span>
-                </div>
-              )}
-
-              {/* Laser Target Box Overlay */}
-              {isCameraActive && (
-                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4 z-10">
-                  <div
-                    className={`relative w-64 sm:w-72 h-32 sm:h-36 border-2 rounded-2xl flex items-center justify-center transition-all ${
-                      scanSuccessPulse
-                        ? 'border-emerald-400 bg-emerald-500/20 shadow-[0_0_30px_rgba(52,211,153,0.6)]'
-                        : 'border-indigo-400/90 bg-indigo-500/5 shadow-2xl'
-                    }`}
-                  >
-                    {/* Corner Reticles */}
-                    <div className="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-indigo-400 -mt-1 -ml-1 rounded-tl-xl" />
-                    <div className="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-indigo-400 -mt-1 -mr-1 rounded-tr-xl" />
-                    <div className="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-indigo-400 -mb-1 -ml-1 rounded-bl-xl" />
-                    <div className="absolute bottom-0 right-0 w-5 h-5 border-b-4 border-r-4 border-indigo-400 -mb-1 -mr-1 rounded-br-lg" />
-
-                    {/* Animated Scanning Laser Line */}
-                    <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-rose-500 to-transparent shadow-[0_0_14px_#f43f5e] animate-bounce duration-1000" />
-                  </div>
-
-                  <p className="mt-3 text-[11px] font-bold text-white/90 bg-slate-900/85 px-3 py-1 rounded-full border border-slate-700/80 shadow-md">
-                    Posisikan garis laser merah tepat di atas barcode barang
-                  </p>
-                </div>
-              )}
-
-              {/* Camera Error Message */}
-              {cameraError && !isCameraStarting && (
-                <div className="absolute inset-0 bg-slate-900/95 p-6 text-center text-slate-300 space-y-3 z-30 flex flex-col items-center justify-center">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center mx-auto text-amber-400 shadow-lg">
-                    <AlertTriangle className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-extrabold text-white mb-1">
-                      Akses Kamera Smartphone Ditolak / Dibatasi
-                    </h4>
-                    <p className="text-[11px] text-slate-400 max-w-xs">{cameraError}</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-800 border border-slate-700 text-left text-[11px] text-slate-300 space-y-1 max-w-xs">
-                    <p className="font-bold text-amber-300 flex items-center gap-1">
-                      <Info className="w-3.5 h-3.5 shrink-0" />
-                      Solusi:
+        {/* ========================================================================= */}
+        {/* POS MODE: Live Item Card + Quantity Controls + Immediate Bayar Button   */}
+        {/* ========================================================================= */}
+        {mode === 'pos' && (
+          <div className="p-3 sm:p-4 space-y-3 bg-white flex-1 overflow-y-auto">
+            {/* Scanned Item Details with Stepper */}
+            {lastMatchedProduct ? (
+              <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <img
+                    src={lastMatchedProduct.image}
+                    alt={lastMatchedProduct.name}
+                    className="w-12 h-12 rounded-xl object-cover border border-emerald-300 bg-white shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
+                      {lastMatchedProduct.name}
                     </p>
-                    <p>1. Izinkan akses kamera pada browser HP.</p>
-                    <p>2. Gunakan tombol <strong>Ketik / Pilih</strong> di tab atas.</p>
-                    <p>3. Atau klik produk contoh di bawah.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={startCamera}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Coba Hubungkan Ulang</span>
-                  </button>
-                </div>
-              )}
-
-              {/* Detection Notification Banner */}
-              {lastDetectedCode && (
-                <div
-                  className={`absolute top-3 inset-x-3 p-3 rounded-2xl text-xs font-bold shadow-xl animate-in slide-in-from-top-2 duration-150 flex items-center justify-between gap-2 z-20 ${
-                    lastScannedProduct ? 'bg-emerald-600 text-white' : 'bg-indigo-700 text-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-emerald-200">{lastDetectedCode}</span>
-                        {lastScannedProduct && (
-                          <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded font-extrabold">
-                            {formatRupiah(lastScannedProduct.price)}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] truncate font-semibold">
-                        {lastScannedProduct ? lastScannedProduct.name : 'Kode terdeteksi & dimasukkan'}
-                      </p>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-600">
+                      <span className="font-mono text-emerald-800 font-bold">
+                        {formatRupiah(lastMatchedProduct.price)}
+                      </span>
+                      <span>&bull;</span>
+                      <span className="text-slate-500">
+                        Sisa Stok: {lastMatchedProduct.stock}
+                      </span>
                     </div>
                   </div>
-                  {scannerMode === 'continuous' && (
-                    <span className="text-[10px] font-black bg-black/30 px-2 py-1 rounded-lg shrink-0">
-                      #{sessionScanCount} Scan
-                    </span>
-                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Smart Hardware Controls (Torch / Flip / Sound / Lens) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {/* Torch / Flashlight Button */}
-                {hasTorchSupport && (
+                {/* Quantity Stepper for Scanned Item */}
+                <div className="flex items-center gap-1.5 shrink-0 bg-white p-1 rounded-xl border border-emerald-200 shadow-2xs">
                   <button
                     type="button"
-                    id="btn-toggle-torch"
-                    onClick={toggleTorch}
-                    className={`px-3 py-1.5 rounded-xl border font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                      torchEnabled
-                        ? 'bg-amber-400 border-amber-500 text-slate-950 shadow-md shadow-amber-200'
-                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
-                    }`}
-                    title="Nyalakan Lampu Flash / Senter HP"
+                    onClick={handleDecreaseQty}
+                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold transition cursor-pointer active:scale-95"
+                    title="Kurangi Qty"
                   >
-                    <Flashlight className="w-3.5 h-3.5" />
-                    <span>{torchEnabled ? 'Senter: ON' : 'Senter HP'}</span>
+                    {lastCartItem && lastCartItem.quantity > 1 ? (
+                      <Minus className="w-3.5 h-3.5" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                    )}
+                  </button>
+                  <span className="w-8 text-center font-mono font-black text-xs sm:text-sm text-slate-900">
+                    {lastCartItem ? lastCartItem.quantity : 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleIncreaseQty}
+                    disabled={
+                      lastCartItem
+                        ? lastCartItem.quantity >= lastMatchedProduct.stock
+                        : lastMatchedProduct.stock <= 1
+                    }
+                    className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white flex items-center justify-center font-bold transition cursor-pointer active:scale-95 shadow-2xs"
+                    title="Tambah Qty"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : isNotFoundWarning ? (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-2 animate-in fade-in">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                  <div className="min-w-0 text-xs">
+                    <p className="font-bold text-amber-900">
+                      Barcode Belum Terdaftar
+                    </p>
+                    <p className="text-amber-700 text-[11px] truncate font-mono">
+                      {lastDetectedCode}
+                    </p>
+                  </div>
+                </div>
+                {onAddNewProductWithBarcode && lastDetectedCode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onAddNewProductWithBarcode(lastDetectedCode);
+                    }}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shrink-0 flex items-center gap-1 cursor-pointer"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Input Barang</span>
                   </button>
                 )}
-
-                {/* Flip Camera */}
-                <button
-                  type="button"
-                  id="btn-flip-camera"
-                  onClick={handleFlipCamera}
-                  className="px-3 py-1.5 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center gap-1.5 transition cursor-pointer"
-                  title="Ganti Kamera Depan / Belakang"
-                >
-                  <FlipHorizontal className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Putar Kamera</span>
-                </button>
-
-                {/* Sound Toggle */}
-                <button
-                  type="button"
-                  id="btn-toggle-sound"
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  className={`px-3 py-1.5 rounded-xl border font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                    soundEnabled
-                      ? 'border-indigo-200 bg-indigo-50 text-indigo-800'
-                      : 'border-slate-200 bg-slate-100 text-slate-500'
-                  }`}
-                  title="Bunyi Beep Scanner"
-                >
-                  {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-                  <span>{soundEnabled ? 'Beep' : 'Mute'}</span>
-                </button>
               </div>
-
-              {/* Multiple Camera Device Selector */}
-              {cameraDevices.length > 1 && (
-                <div className="flex items-center gap-1">
-                  <select
-                    value={selectedDeviceId}
-                    onChange={(e) => setSelectedDeviceId(e.target.value)}
-                    className="px-2.5 py-1.5 bg-slate-100 border border-slate-300 rounded-xl text-[11px] font-bold text-slate-700 outline-none cursor-pointer max-w-[140px] truncate"
-                  >
-                    {cameraDevices.map((d, i) => (
-                      <option key={d.id} value={d.id}>
-                        {d.label || `Lensa Kamera #${i + 1}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Test Barcodes Chips for Instant Fallback */}
-            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-extrabold text-slate-700 flex items-center gap-1">
-                  <Zap className="w-3.5 h-3.5 text-amber-500" />
-                  Pindai Cepat Produk Contoh (1-Klik):
-                </p>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  {storeProducts.length} Produk
+            ) : (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-600 flex items-center justify-center gap-2">
+                <Camera className="w-4 h-4 text-indigo-600 shrink-0" />
+                <span>
+                  Arahkan barcode kemasan barang ke area kotak pemindai di atas.
                 </span>
               </div>
-              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
-                {storeProducts.slice(0, 8).map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleBarcodeDetected(p.sku)}
-                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 hover:border-indigo-300 border border-slate-200 text-xs font-semibold text-slate-700 transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                  >
-                    <span className="font-mono text-indigo-700 font-bold">{p.sku}</span>
-                    <span className="text-slate-500 truncate max-w-[100px]">{p.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Scans Strip in Continuous Mode */}
-            {recentScans.length > 0 && scannerMode === 'continuous' && (
-              <div className="space-y-1 border-t border-slate-100 pt-2">
-                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                  Riwayat Scan Sesi Ini ({recentScans.length}):
-                </p>
-                <div className="flex gap-1.5 overflow-x-auto pb-1">
-                  {recentScans.map((scan, idx) => (
-                    <div
-                      key={idx}
-                      className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-[11px] shrink-0 font-medium text-indigo-900 flex items-center gap-1"
-                    >
-                      <span className="font-mono font-bold">{scan.code}</span>
-                      {scan.name && <span className="text-slate-600 truncate max-w-[90px]">({scan.name})</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
             )}
-          </div>
-        )}
 
-        {/* Tab 2: Manual Search & Catalog Selection */}
-        {activeTab === 'manual' && (
-          <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
-            <form onSubmit={handleManualSubmit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Ketik Kode Barcode / SKU Produk
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    value={manualCode}
-                    onChange={(e) => setManualCode(e.target.value)}
-                    placeholder="Contoh: MIN-001 / BEV-001..."
-                    className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition shadow-xs cursor-pointer"
-                  >
-                    Masukkan
-                  </button>
+            {/* Bottom Checkout & Cart Action Bar */}
+            <div className="pt-2 border-t border-slate-100 flex flex-col gap-2.5">
+              {/* Total & Item Info */}
+              <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
+                    Total Belanja Kasir
+                  </span>
+                  <p className="text-base sm:text-lg font-black text-emerald-400">
+                    {formatRupiah(cartTotals.subtotal)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-extrabold text-white bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700">
+                    {cartTotals.itemCount} Jenis ({cartTotals.totalUnits} pcs)
+                  </span>
                 </div>
               </div>
-            </form>
 
-            <div className="space-y-2 pt-2 border-t border-slate-200">
-              <label className="block text-xs font-bold text-slate-600">
-                Pilih Langsung dari Katalog Produk Toko:
-              </label>
-              <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
-                {storeProducts.map((p) => (
-                  <div
-                    key={p.id}
-                    onClick={() => handleBarcodeDetected(p.sku)}
-                    className="p-2.5 rounded-2xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition cursor-pointer flex items-center justify-between gap-2"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <img
-                        src={p.image}
-                        alt={p.name}
-                        className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <p className="font-bold text-xs text-slate-900 truncate">{p.name}</p>
-                        <p className="text-[11px] font-mono text-indigo-700 font-bold">{p.sku}</p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-xs text-slate-900">{formatRupiah(p.price)}</p>
-                      <span className="text-[10px] text-slate-500">Stok: {p.stock}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tab 3: Shelf Barcode Generator & Label Printing */}
-        {activeTab === 'print' && (
-          <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Pilih Produk untuk Dibuat Label Barcode Rak
-              </label>
-              <select
-                value={selectedProductForPrint?.id || ''}
-                onChange={(e) => {
-                  const prod = storeProducts.find((p) => p.id === e.target.value);
-                  setSelectedProductForPrint(prod || null);
-                }}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white cursor-pointer"
-              >
-                {storeProducts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.sku} - {p.name} ({formatRupiah(p.price)})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {selectedProductForPrint && (
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-3">
-                <div
-                  id="printable-shelf-barcode-tag"
-                  className="bg-white p-4 rounded-2xl border border-slate-300 shadow-xs max-w-xs mx-auto space-y-1.5 font-sans"
+              {/* Primary Buttons: Bayar Sekarang & Lanjut Scan */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="py-3 px-3 rounded-2xl border border-slate-300 hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
                 >
-                  <p className="font-bold text-xs text-slate-900 truncate">
-                    {selectedProductForPrint.name}
-                  </p>
-                  <p className="text-base font-black text-indigo-700">
-                    {formatRupiah(selectedProductForPrint.price)}
-                  </p>
+                  <ShoppingBag className="w-4 h-4 text-slate-600" />
+                  <span>Lihat Keranjang</span>
+                </button>
 
-                  {/* High-Contrast SVG Barcode Visualization */}
-                  <div className="py-2 flex flex-col items-center justify-center">
-                    <svg className="w-52 h-14" viewBox="0 0 220 54">
-                      {Array.from({ length: 42 }).map((_, i) => {
-                        const isThick =
-                          (i * 7 +
-                            (selectedProductForPrint.sku.charCodeAt(
-                              i % selectedProductForPrint.sku.length
-                            ) || 0)) %
-                            3 ===
-                          0;
-                        const width = isThick ? 4 : 2;
-                        const x = i * 5 + 6;
-                        return (
-                          <rect
-                            key={i}
-                            x={x}
-                            y="2"
-                            width={width}
-                            height="46"
-                            fill="#0f172a"
-                          />
-                        );
-                      })}
-                    </svg>
-                    <span className="font-mono text-xs font-black tracking-widest text-slate-900 mt-1 select-all">
-                      *{selectedProductForPrint.sku}*
-                    </span>
-                  </div>
+                <button
+                  type="button"
+                  id="btn-scanner-pay-now"
+                  disabled={cartTotals.itemCount === 0}
+                  onClick={handleProceedToPayment}
+                  className="py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/30 transition cursor-pointer active:scale-98"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>Bayar ({formatRupiah(cartTotals.subtotal)})</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
-                  <p className="text-[10px] text-slate-400 border-t border-dashed border-slate-200 pt-1 uppercase font-bold">
-                    {settings.name || 'Sistem Kasir POS'} &bull; RAK DISPLAY
+              {/* Collapsed manual input helper button */}
+              {!showManualInput && (
+                <button
+                  type="button"
+                  onClick={() => setShowManualInput(true)}
+                  className="text-[11px] text-slate-500 hover:text-indigo-600 font-semibold text-center flex items-center justify-center gap-1 cursor-pointer pt-1"
+                >
+                  <Keyboard className="w-3.5 h-3.5" />
+                  <span>Barcode kemasan rusak? Klik di sini untuk ketik manual</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* PRODUCT INPUT MODE: Focused Barcode Capture with Confirm & Use Button     */}
+        {/* ========================================================================= */}
+        {mode === 'product-input' && (
+          <div className="p-4 space-y-4 bg-white flex-1 overflow-y-auto">
+            {lastDetectedCode ? (
+              <div className="p-4 bg-indigo-50/80 border-2 border-indigo-200 rounded-2xl space-y-3 text-center animate-in zoom-in-95">
+                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center mx-auto shadow-md">
+                  <Check className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Kode Barcode Terdeteksi
+                  </span>
+                  <p className="text-xl sm:text-2xl font-mono font-black text-indigo-900 tracking-wider">
+                    {lastDetectedCode}
                   </p>
                 </div>
 
-                <div className="flex items-center justify-center gap-2">
+                {lastMatchedProduct && (
+                  <p className="text-xs text-amber-700 bg-amber-100/80 px-3 py-1.5 rounded-xl font-semibold inline-block">
+                    ⚠️ Sudah dipakai produk:{' '}
+                    <strong>{lastMatchedProduct.name}</strong>
+                  </p>
+                )}
+
+                <div className="flex gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => window.print()}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+                    onClick={() => {
+                      setLastDetectedCode(null);
+                      setLastMatchedProduct(null);
+                    }}
+                    className="flex-1 py-2.5 px-3 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition cursor-pointer"
                   >
-                    <Printer className="w-4 h-4" />
-                    <span>Cetak Label Barcode Harga</span>
+                    Scan Ulang
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleBarcodeDetected(selectedProductForPrint.sku)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-xs font-bold transition cursor-pointer"
+                    id="btn-use-scanned-barcode"
+                    onClick={() => {
+                      if (onScan) onScan(lastDetectedCode);
+                      onClose();
+                    }}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>Tambah ke Kasir</span>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Gunakan Barcode Ini</span>
                   </button>
                 </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-2">
+                <Barcode className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="text-xs font-bold text-slate-700">
+                  Arahkan kamera HP ke barcode pada bungkus produk / rokok / snack
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Kode barcode otomatis terisi ke form tambah barang.
+                </p>
+
+                {!showManualInput && (
+                  <button
+                    type="button"
+                    onClick={() => setShowManualInput(true)}
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                  >
+                    <Keyboard className="w-3.5 h-3.5" />
+                    <span>Ketik Kode Barcode Manual</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
         )}
-
-        {/* Footer info bar */}
-        <div className="bg-slate-50 border-t border-slate-200 px-4 py-2.5 text-[11px] text-slate-500 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-1.5 font-medium">
-            <Smartphone className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Optimal untuk browser HP (Chrome, Safari, Firefox, Edge)</span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-xs font-bold text-slate-700 hover:text-slate-900 cursor-pointer"
-          >
-            Selesai
-          </button>
-        </div>
       </div>
     </div>
   );
