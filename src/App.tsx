@@ -250,12 +250,12 @@ const MainAppContent: React.FC = () => {
   const roleBadge = getRoleBadge(currentUser.role);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#F4F7F9] text-slate-800 font-sans select-none">
-      {/* Averion Obsidian & Emerald Sidebar (Desktop) */}
+    <div className="flex h-screen w-screen overflow-hidden bg-[#F8F9FA] dark:bg-[#070D18] text-slate-900 dark:text-slate-100 font-sans select-none">
+      {/* Clean Minimalist & Approachable Sidebar (Desktop) */}
       <aside
         className={`hidden lg:flex ${
           isSidebarCollapsed ? 'w-20 px-2' : 'w-64 px-4'
-        } bg-[#0B1320] flex-col py-5 text-white shrink-0 z-30 justify-between select-none shadow-2xl border-r border-slate-800/80 transition-all duration-300 ease-in-out`}
+        } bg-white dark:bg-slate-900 flex-col py-5 text-slate-800 dark:text-slate-100 shrink-0 z-30 justify-between select-none shadow-xs border-r border-slate-200/80 dark:border-slate-800 transition-all duration-300 ease-in-out`}
       >
         {/* Top Logo & Branding & Nav */}
         <div className="space-y-5 overflow-y-auto pr-0.5 scrollbar-none">
@@ -274,11 +274,11 @@ const MainAppContent: React.FC = () => {
                   size="sm"
                 />
                 <div className="min-w-0 truncate">
-                  <h1 className="text-sm font-extrabold tracking-tight text-white leading-tight font-sans flex items-center gap-1.5 truncate">
-                    <span>{settings.name || 'Averion POS'}</span>
+                  <h1 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight font-sans flex items-center gap-1.5 truncate">
+                    <span>{settings.name || 'Kasiready POS'}</span>
                   </h1>
-                  <p className="text-[10px] text-slate-400 truncate">
-                    {settings.tagline || 'Studio POS Pro'}
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate font-semibold">
+                    {settings.tagline || 'Sistem Kasir & Toko'}
                   </p>
                 </div>
               </div>
@@ -288,7 +288,7 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 id="averion-collapse-sidebar-btn"
                 onClick={() => setIsSidebarCollapsed(true)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer shrink-0"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0"
                 title="Kecilkan Menu (Icon Only)"
               >
                 <PanelLeftClose className="w-4 h-4" />
@@ -299,7 +299,7 @@ const MainAppContent: React.FC = () => {
               <div
                 onClick={() => setActiveTab('pos')}
                 className="cursor-pointer hover:scale-105 transition shrink-0"
-                title={settings.name || 'Averion POS'}
+                title={settings.name || 'Kasiready POS'}
               >
                 <BrandLogo
                   logoType={settings.logoType}
@@ -315,7 +315,7 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 id="averion-expand-sidebar-btn"
                 onClick={() => setIsSidebarCollapsed(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                 title="Perluas Menu"
               >
                 <PanelLeftOpen className="w-4 h-4 text-[#00A876]" />
@@ -324,7 +324,7 @@ const MainAppContent: React.FC = () => {
           )}
 
           {/* Primary Nav List */}
-          <nav className="space-y-1.5 pt-1">
+          <nav className="space-y-1 pt-1">
             {primaryNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -338,13 +338,13 @@ const MainAppContent: React.FC = () => {
                     title={item.label}
                     className={`w-full relative flex items-center justify-center p-3 rounded-xl transition-all cursor-pointer group ${
                       isActive
-                        ? 'bg-[#00A876] text-white shadow-md shadow-[#00A876]/25 font-bold'
-                        : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+                        ? 'bg-[#00A876] text-white shadow-xs font-bold'
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                    <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'}`} />
                     {item.badge !== null && item.badge !== undefined && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-[#0B1320]" />
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-900" />
                     )}
                   </button>
                 );
@@ -357,18 +357,18 @@ const MainAppContent: React.FC = () => {
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-[#00A876] text-white shadow-md shadow-[#00A876]/25 font-bold'
-                      : 'text-slate-400 hover:bg-slate-800/70 hover:text-white font-medium'
+                      ? 'bg-[#00A876] text-white shadow-xs font-bold'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-semibold'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
                     <span>{item.label}</span>
                   </div>
                   {item.badge !== null && item.badge !== undefined && (
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        isActive ? 'bg-white text-[#00A876]' : item.badgeColor
+                        isActive ? 'bg-white/20 text-white' : item.badgeColor
                       }`}
                     >
                       {item.badge}
@@ -387,7 +387,7 @@ const MainAppContent: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsKontenOpen(!isKontenOpen)}
-                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 cursor-pointer"
+                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-600 cursor-pointer"
                 >
                   <span>KONTEN</span>
                   <ChevronDown
@@ -400,7 +400,7 @@ const MainAppContent: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsDocModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
                     >
                       <BookOpen className="w-4 h-4 shrink-0 text-slate-400" />
                       <span>Dokumentasi</span>
@@ -414,7 +414,7 @@ const MainAppContent: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsMarketingOpen(!isMarketingOpen)}
-                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 cursor-pointer"
+                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-600 cursor-pointer"
                 >
                   <span>MARKETING & GROWTH</span>
                   <ChevronDown
@@ -427,7 +427,7 @@ const MainAppContent: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsPromoModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
                     >
                       <Tag className="w-4 h-4 shrink-0 text-slate-400" />
                       <span>Promosi & Diskon</span>
@@ -441,7 +441,7 @@ const MainAppContent: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsConfigOpen(!isConfigOpen)}
-                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 cursor-pointer"
+                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-600 cursor-pointer"
                 >
                   <span>KONFIGURASI</span>
                   <ChevronDown
@@ -455,13 +455,13 @@ const MainAppContent: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setActiveTab('settings')}
-                        className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
+                        className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
                           activeTab === 'settings'
                             ? 'bg-[#00A876] text-white font-bold'
-                            : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
-                        <Settings className="w-4 h-4 shrink-0 text-slate-400" />
+                        <Settings className="w-4 h-4 shrink-0" />
                         <span>Pengaturan Toko</span>
                       </button>
                     )}
@@ -469,31 +469,31 @@ const MainAppContent: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsActivityModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
                     >
                       <Clock className="w-4 h-4 shrink-0 text-slate-400" />
-                      <span>Activity Logs</span>
+                      <span>Log Aktivitas</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setIsLicenseModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
                     >
                       <ShieldCheck className="w-4 h-4 shrink-0 text-slate-400" />
-                      <span>License Pro</span>
+                      <span>Lisensi POS</span>
                     </button>
                   </div>
                 )}
               </div>
             </>
           ) : (
-            <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
+            <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col items-center">
               <button
                 type="button"
                 onClick={() => setIsDocModalOpen(true)}
                 title="Dokumentasi"
-                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 transition cursor-pointer"
               >
                 <BookOpen className="w-5 h-5 shrink-0" />
               </button>
@@ -502,7 +502,7 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 onClick={() => setIsPromoModalOpen(true)}
                 title="Promosi & Diskon"
-                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 transition cursor-pointer"
               >
                 <Tag className="w-5 h-5 shrink-0" />
               </button>
@@ -515,7 +515,7 @@ const MainAppContent: React.FC = () => {
                   className={`w-full flex items-center justify-center p-3 rounded-xl transition cursor-pointer ${
                     activeTab === 'settings'
                       ? 'bg-[#00A876] text-white font-bold'
-                      : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+                      : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700'
                   }`}
                 >
                   <Settings className="w-5 h-5 shrink-0" />
@@ -526,7 +526,7 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 onClick={() => setIsActivityModalOpen(true)}
                 title="Activity Logs"
-                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 transition cursor-pointer"
               >
                 <Clock className="w-5 h-5 shrink-0" />
               </button>
@@ -535,7 +535,7 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 onClick={() => setIsLicenseModalOpen(true)}
                 title="License Pro"
-                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-800/70 hover:text-white transition cursor-pointer"
+                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 transition cursor-pointer"
               >
                 <ShieldCheck className="w-5 h-5 shrink-0" />
               </button>
@@ -544,28 +544,28 @@ const MainAppContent: React.FC = () => {
         </div>
 
         {/* Bottom Workspace Card & Logout Button */}
-        <div className="pt-4 border-t border-slate-800/80 space-y-3 shrink-0">
+        <div className="pt-4 border-t border-slate-200/80 dark:border-slate-800 space-y-2.5 shrink-0">
           {!isSidebarCollapsed ? (
             <>
-              {/* Averion Studio / Store Card */}
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+              {/* Studio Card */}
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between">
                 <div className="flex items-center gap-2.5 truncate">
-                  <div className="w-7 h-7 rounded-lg bg-[#00A876]/20 border border-[#00A876]/30 flex items-center justify-center text-[#00A876] shrink-0">
+                  <div className="w-7 h-7 rounded-xl bg-[#00A876]/15 border border-[#00A876]/30 flex items-center justify-center text-[#00A876] shrink-0">
                     <Sparkles className="w-3.5 h-3.5" />
                   </div>
                   <div className="truncate">
-                    <p className="text-xs font-bold text-white truncate leading-tight">
-                      Averion Studio
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate leading-tight">
+                      Kasiready Pro
                     </p>
-                    <span className="text-[10px] text-slate-400 truncate block">
-                      Asisten POS Toko
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate block font-medium">
+                      Cloud Multi-Cabang
                     </span>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsDocModalOpen(true)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-700 transition cursor-pointer"
                   title="Bantuan"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -576,9 +576,9 @@ const MainAppContent: React.FC = () => {
               <button
                 type="button"
                 onClick={logout}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/80 transition cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
               >
-                <LogOut className="w-4 h-4 rotate-180 text-rose-400" />
+                <LogOut className="w-4 h-4 rotate-180 text-rose-500" />
                 <span>Keluar Akun</span>
               </button>
             </>
@@ -587,8 +587,8 @@ const MainAppContent: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsDocModalOpen(true)}
-                title="Averion Studio - Bantuan"
-                className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-[#00A876] hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                title="Bantuan"
+                className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[#00A876] hover:bg-slate-100 transition cursor-pointer"
               >
                 <Sparkles className="w-4 h-4" />
               </button>
@@ -597,7 +597,7 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 onClick={logout}
                 title="Keluar Akun"
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition cursor-pointer"
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
               >
                 <LogOut className="w-4 h-4 rotate-180" />
               </button>
@@ -607,24 +607,27 @@ const MainAppContent: React.FC = () => {
       </aside>
 
       {/* Main App Layout Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F4F7F9]">
-        {/* Averion Midnight Deep Topbar (Exact match to screenshot) */}
-        <header className="h-14 bg-[#0B1320] text-white flex items-center justify-between px-4 sm:px-6 shrink-0 relative z-40 shadow-md">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8F9FA] dark:bg-[#070D18]">
+        {/* Clean Light & Modern Topbar */}
+        <header className="h-14 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex items-center justify-between px-4 sm:px-6 shrink-0 relative z-40 shadow-2xs border-b border-slate-200/80 dark:border-slate-800">
           {/* Left: Mobile Menu Toggle & Uppercase Breadcrumb */}
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile Drawer Button */}
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             >
               <Menu className="w-5 h-5" />
             </button>
 
             {/* Breadcrumb Title */}
-            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-100">
-              {getPageUppercaseTitle()}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#00A876]" />
+              <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                {getPageUppercaseTitle()}
+              </span>
+            </div>
           </div>
 
           {/* Center: Global Search Bar with Ctrl K */}
@@ -632,13 +635,13 @@ const MainAppContent: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsSearchModalOpen(true)}
-              className="w-64 lg:w-80 bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 hover:border-slate-600 text-slate-300 rounded-lg px-3.5 py-1.5 flex items-center justify-between text-xs transition cursor-pointer shadow-inner"
+              className="w-64 lg:w-80 bg-slate-50 hover:bg-slate-100/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl px-3.5 py-1.5 flex items-center justify-between text-xs transition cursor-pointer shadow-2xs"
             >
               <div className="flex items-center gap-2">
                 <Search className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-slate-400">Cari...</span>
+                <span className="text-slate-400 font-medium">Cari menu atau shortcut...</span>
               </div>
-              <span className="font-mono text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded border border-slate-600">
+              <span className="font-mono text-[10px] bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-600 font-bold">
                 Ctrl K
               </span>
             </button>
@@ -652,7 +655,7 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 id="header-store-switcher-btn"
                 onClick={() => setIsStoreMenuOpen(!isStoreMenuOpen)}
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-800 text-xs font-semibold text-slate-200 border border-slate-700/80 transition cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-2xs"
               >
                 <Building2 className="w-3.5 h-3.5 text-[#00A876] shrink-0" />
                 <span className="max-w-[100px] truncate">
@@ -667,7 +670,7 @@ const MainAppContent: React.FC = () => {
                     className="fixed inset-0 z-40"
                     onClick={() => setIsStoreMenuOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-64 bg-slate-900 text-white rounded-xl shadow-2xl border border-slate-800 z-50 p-2 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 z-50 p-2 animate-in fade-in zoom-in-95 duration-150">
                     <p className="text-[10px] font-bold uppercase text-slate-400 px-2 py-1">
                       Pilih Cabang Toko
                     </p>
@@ -682,10 +685,10 @@ const MainAppContent: React.FC = () => {
                               setActiveStoreId(s.id);
                               setIsStoreMenuOpen(false);
                             }}
-                            className={`w-full text-left p-2 rounded-lg text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
+                            className={`w-full text-left p-2 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
                               isSelected
-                                ? 'bg-[#00A876] text-white font-bold'
-                                : 'hover:bg-slate-800 text-slate-300'
+                                ? 'bg-[#00A876] text-white shadow-xs'
+                                : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                             }`}
                           >
                             <div className="min-w-0">
@@ -695,7 +698,7 @@ const MainAppContent: React.FC = () => {
                               </span>
                             </div>
                             {s.isMain && (
-                              <span className="text-[9px] bg-slate-800 text-slate-300 px-1.5 py-0.2 rounded font-bold">
+                              <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.2 rounded font-bold">
                                 Pusat
                               </span>
                             )}
@@ -713,12 +716,12 @@ const MainAppContent: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsAlertOpen(!isAlertOpen)}
-                className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition relative cursor-pointer"
+                className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition relative cursor-pointer border border-transparent hover:border-slate-200"
                 title="Pemberitahuan Stok"
               >
                 <Bell className="w-4 h-4" />
                 {lowStockProducts.length > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#0B1320]" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900" />
                 )}
               </button>
 
@@ -729,15 +732,15 @@ const MainAppContent: React.FC = () => {
                     className="fixed inset-0 z-40"
                     onClick={() => setIsAlertOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-80 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 z-50 p-4 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 z-50 p-4 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-amber-500" />
-                        <h4 className="font-bold text-xs text-slate-900">
+                        <h4 className="font-bold text-xs text-slate-900 dark:text-white">
                           Peringatan Stok Menipis
                         </h4>
                       </div>
-                      <span className="text-[10px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-full">
                         {lowStockProducts.length} Produk
                       </span>
                     </div>
@@ -752,10 +755,10 @@ const MainAppContent: React.FC = () => {
                         {lowStockProducts.map((prod) => (
                           <div
                             key={prod.id}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 hover:bg-amber-50 transition"
+                            className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/60 hover:bg-amber-50 transition"
                           >
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-slate-900 truncate">
+                              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
                                 {prod.name}
                               </p>
                               <span className="text-[11px] text-rose-600 font-bold">
@@ -768,7 +771,7 @@ const MainAppContent: React.FC = () => {
                                 setIsAlertOpen(false);
                                 handleQuickRestock(prod.id);
                               }}
-                              className="ml-2 px-2.5 py-1 rounded-lg bg-[#00A876] hover:bg-[#008f65] text-white text-[11px] font-semibold flex items-center gap-1 shrink-0 cursor-pointer"
+                              className="ml-2 px-2.5 py-1 rounded-lg bg-[#00A876] hover:bg-[#008f65] text-white text-[11px] font-bold flex items-center gap-1 shrink-0 cursor-pointer shadow-xs"
                             >
                               <span>Restock</span>
                               <ArrowRight className="w-3 h-3" />
@@ -787,29 +790,29 @@ const MainAppContent: React.FC = () => {
               type="button"
               id="header-theme-toggle-btn"
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer border border-transparent hover:border-slate-200"
               title={theme === 'dark' ? 'Ganti ke Mode Terang (Light Mode)' : 'Ganti ke Mode Gelap (Dark Mode)'}
             >
               {theme === 'dark' ? (
                 <Sun className="w-4 h-4 text-amber-400" />
               ) : (
-                <Moon className="w-4 h-4 text-slate-300" />
+                <Moon className="w-4 h-4 text-slate-600" />
               )}
             </button>
 
-            {/* User Profile Pill with Emerald Avatar Circle (Ady Sheva / Imran Alwi) */}
+            {/* User Profile Pill with Emerald Avatar Circle */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2 p-1 pl-1.5 pr-2.5 rounded-full hover:bg-slate-800 transition cursor-pointer border border-slate-700/60"
+                className="flex items-center gap-2 p-1 pl-1.5 pr-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer border border-slate-200 dark:border-slate-700 shadow-2xs"
               >
                 {/* Emerald circle avatar */}
-                <div className="w-7 h-7 rounded-full bg-[#00A876] text-white font-bold flex items-center justify-center text-xs shadow-xs">
+                <div className="w-7 h-7 rounded-full bg-[#00A876] text-white font-black flex items-center justify-center text-xs shadow-xs">
                   {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
                 </div>
-                <span className="text-xs font-bold text-slate-200 hidden sm:inline">
-                  {currentUser.name || 'Ady Sheva'}
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 hidden sm:inline">
+                  {currentUser.name || 'Kasir'}
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
@@ -821,16 +824,16 @@ const MainAppContent: React.FC = () => {
                     className="fixed inset-0 z-40"
                     onClick={() => setIsUserMenuOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-64 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-800 z-50 p-3 space-y-3 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center gap-3 pb-2.5 border-b border-slate-800">
+                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 z-50 p-3 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center gap-3 pb-2.5 border-b border-slate-100 dark:border-slate-800">
                       <div className="w-10 h-10 rounded-xl bg-[#00A876] text-white font-bold flex items-center justify-center text-base">
                         {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'A'}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-xs text-white truncate">
+                        <p className="font-bold text-xs text-slate-900 dark:text-white truncate">
                           {currentUser.name}
                         </p>
-                        <p className="text-[11px] text-slate-400 truncate">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                           {currentUser.email}
                         </p>
                         <span className={`inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded border ${roleBadge.bg}`}>
@@ -847,7 +850,7 @@ const MainAppContent: React.FC = () => {
                             setIsUserMenuOpen(false);
                             setActiveTab('settings');
                           }}
-                          className="w-full text-left px-2.5 py-2 rounded-xl text-slate-300 hover:bg-slate-800 font-semibold flex items-center gap-2 cursor-pointer"
+                          className="w-full text-left px-2.5 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold flex items-center gap-2 cursor-pointer"
                         >
                           <Settings className="w-4 h-4 text-slate-400" />
                           <span>Pengaturan POS</span>
@@ -858,12 +861,12 @@ const MainAppContent: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setIsUserMenuOpen(false);
-                          setIsLicenseModalOpen(true);
+                          setIsActivityModalOpen(true);
                         }}
-                        className="w-full text-left px-2.5 py-2 rounded-xl text-slate-300 hover:bg-slate-800 font-semibold flex items-center gap-2 cursor-pointer"
+                        className="w-full text-left px-2.5 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold flex items-center gap-2 cursor-pointer"
                       >
-                        <ShieldCheck className="w-4 h-4 text-slate-400" />
-                        <span>Lisensi Pro Enterprise</span>
+                        <Clock className="w-4 h-4 text-slate-400" />
+                        <span>Log Aktivitas Kasir</span>
                       </button>
 
                       <button
@@ -872,10 +875,10 @@ const MainAppContent: React.FC = () => {
                           setIsUserMenuOpen(false);
                           logout();
                         }}
-                        className="w-full text-left px-2.5 py-2 rounded-xl text-rose-400 hover:bg-rose-950/40 font-bold flex items-center gap-2 cursor-pointer"
+                        className="w-full text-left px-2.5 py-2 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-bold flex items-center gap-2 cursor-pointer"
                       >
-                        <LogOut className="w-4 h-4" />
-                        <span>Keluar Akun (Logout)</span>
+                        <LogOut className="w-4 h-4 rotate-180" />
+                        <span>Keluar Akun</span>
                       </button>
                     </div>
                   </div>
@@ -885,8 +888,8 @@ const MainAppContent: React.FC = () => {
           </div>
         </header>
 
-        {/* Dynamic Page Views */}
-        <div className="flex-1 overflow-y-auto bg-[#F4F7F9] dark:bg-[#070D18] text-slate-900 dark:text-slate-100 transition-colors duration-150">
+        {/* Tab Content Container */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5">
           {activeTab === 'dashboard' && (
             <DashboardOverviewPage
               onOpenAddProduct={() => setActiveTab('inventory')}
@@ -914,10 +917,10 @@ const MainAppContent: React.FC = () => {
       {isMobileSidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
             onClick={() => setIsMobileSidebarOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-72 bg-[#0B1320] text-white p-5 flex flex-col justify-between shadow-2xl animate-in slide-in-from-left duration-200 border-r border-slate-800">
+          <div className="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-5 flex flex-col justify-between shadow-2xl animate-in slide-in-from-left duration-200 border-r border-slate-200 dark:border-slate-800">
             <div className="space-y-6 overflow-y-auto">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -929,18 +932,18 @@ const MainAppContent: React.FC = () => {
                     size="sm"
                   />
                   <div className="min-w-0">
-                    <span className="text-sm font-extrabold text-white truncate block">
-                      {settings.name || 'Averion POS'}
+                    <span className="text-sm font-extrabold text-slate-900 dark:text-white truncate block">
+                      {settings.name || 'Kasiready POS'}
                     </span>
-                    <span className="text-[10px] text-slate-400 truncate block">
-                      {settings.tagline || 'Studio POS Pro'}
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate block font-medium">
+                      {settings.tagline || 'Sistem Kasir & Toko'}
                     </span>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsMobileSidebarOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -959,8 +962,8 @@ const MainAppContent: React.FC = () => {
                       }}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
                         isActive
-                          ? 'bg-[#00A876] text-white font-bold shadow-md shadow-[#00A876]/25'
-                          : 'text-slate-400 hover:bg-slate-800/70 hover:text-white'
+                          ? 'bg-[#00A876] text-white font-bold shadow-xs'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -968,7 +971,7 @@ const MainAppContent: React.FC = () => {
                         <span>{item.label}</span>
                       </div>
                       {item.badge && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white text-[#00A876]' : item.badgeColor}`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : item.badgeColor}`}>
                           {item.badge}
                         </span>
                       )}

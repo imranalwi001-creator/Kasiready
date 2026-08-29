@@ -234,85 +234,101 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
   }, [sales]);
 
   return (
-    <div className="min-h-full bg-[#F4F7F9] p-4 sm:p-6 lg:p-8 space-y-6 font-sans text-slate-800">
-      {/* Top Header Title & Store/Bundle Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Ringkasan
+    <div className="min-h-full bg-[#F8F9FA] p-4 sm:p-6 lg:p-8 space-y-6 font-sans text-slate-800">
+      {/* Friendly Clean Hero Section (Inspired by Design System) */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1.5 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-[#00A876] text-xs font-bold border border-emerald-200/60 mb-1">
+            <span className="w-2 h-2 rounded-full bg-[#00A876] animate-ping" />
+            <span>Sistem Kasir Aktif & Sinkron Cloud</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
+            Dashboard Kasir & Toko
           </h1>
-          <p className="text-xs sm:text-sm font-medium text-slate-500 mt-0.5">
-            {currentDateFormatted || 'Tuesday, 11 August 2026'}
+          <p className="text-xs sm:text-sm text-slate-500 font-medium">
+            Semua aktivitas tokomu ada di satu tempat: kasir POS, stok barang, pelanggan, dan analisis laba penjualan.
           </p>
         </div>
 
-        {/* Filter Dropdown Pill */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 text-xs sm:text-sm font-semibold text-slate-700 transition-all cursor-pointer"
-          >
-            <Building2 className="w-4 h-4 text-[#00A876]" />
-            <span>
-              {selectedBundleFilter === 'all'
-                ? 'Semua Produk & Bundle (Global)'
-                : stores.find((s) => s.id === selectedBundleFilter)?.name || 'Cabang Terpilih'}
-            </span>
-            <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />
-          </button>
+        {/* Quick Branch & Date Selector */}
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {/* Filter Dropdown Pill */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs sm:text-sm font-bold text-slate-700 transition-all cursor-pointer shadow-2xs"
+            >
+              <Building2 className="w-4 h-4 text-[#00A876]" />
+              <span>
+                {selectedBundleFilter === 'all'
+                  ? 'Semua Cabang Toko'
+                  : stores.find((s) => s.id === selectedBundleFilter)?.name || 'Cabang Terpilih'}
+              </span>
+              <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />
+            </button>
 
-          {isFilterDropdownOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setIsFilterDropdownOpen(false)}
-              />
-              <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-40 animate-in fade-in zoom-in-95 duration-150">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 py-1.5">
-                  Filter Wilayah / Toko
-                </p>
-                <div className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedBundleFilter('all');
-                      setIsFilterDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
-                      selectedBundleFilter === 'all'
-                        ? 'bg-teal-50 text-[#00A876] font-bold'
-                        : 'text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span>Semua Produk & Bundle (Global)</span>
-                    {selectedBundleFilter === 'all' && <CheckCircle2 className="w-4 h-4 text-[#00A876]" />}
-                  </button>
-                  {stores.map((st) => (
+            {isFilterDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setIsFilterDropdownOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-64 bg-white text-slate-800 rounded-2xl shadow-xl border border-slate-200 z-40 p-2 animate-in fade-in zoom-in-95 duration-150">
+                  <p className="text-[10px] font-bold uppercase text-slate-400 px-2.5 py-1.5">
+                    Filter Cabang
+                  </p>
+                  <div className="space-y-1">
                     <button
-                      key={st.id}
                       type="button"
                       onClick={() => {
-                        setSelectedBundleFilter(st.id);
+                        setSelectedBundleFilter('all');
                         setIsFilterDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
-                        selectedBundleFilter === st.id
-                          ? 'bg-teal-50 text-[#00A876] font-bold'
-                          : 'text-slate-700 hover:bg-slate-50'
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                        selectedBundleFilter === 'all'
+                          ? 'bg-[#00A876] text-white'
+                          : 'text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      <div className="truncate">
-                        <p className="truncate">{st.name}</p>
-                        <span className="text-[10px] text-slate-400 font-mono">{st.code}</span>
-                      </div>
-                      {selectedBundleFilter === st.id && <CheckCircle2 className="w-4 h-4 text-[#00A876]" />}
+                      <span>Semua Cabang Toko</span>
+                      {selectedBundleFilter === 'all' && <CheckCircle2 className="w-4 h-4 text-white" />}
                     </button>
-                  ))}
+                    {stores.map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBundleFilter(st.id);
+                          setIsFilterDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                          selectedBundleFilter === st.id
+                            ? 'bg-[#00A876] text-white'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="truncate">
+                          <p className="truncate">{st.name}</p>
+                          <span className="text-[10px] opacity-70 font-mono">{st.code}</span>
+                        </div>
+                        {selectedBundleFilter === st.id && <CheckCircle2 className="w-4 h-4 text-white" />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('pos')}
+            className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition active:scale-95 cursor-pointer"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>Buka Kasir</span>
+          </button>
         </div>
       </div>
 
