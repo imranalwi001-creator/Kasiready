@@ -237,14 +237,53 @@ app.put('/api/pos/products/:id', async (req: Request, res: Response) => {
     products[index] = { ...products[index], ...updates, updatedAt: now };
     db.products = products;
     db.updatedAt = now;
-    serverCache = db;
+    const updatedItem = products[index];
 
     await client.execute({
       sql: "INSERT INTO app_settings (id, data_json, updatedAt) VALUES ('main_settings', ?, ?) ON CONFLICT(id) DO UPDATE SET data_json = excluded.data_json, updatedAt = excluded.updatedAt;",
       args: [JSON.stringify(db), now],
     });
 
-    res.json({ success: true, product: products[index] });
+    // Also update products relational table in Turso
+    try {
+      await client.execute({
+        sql: `UPDATE products SET 
+                name = COALESCE(?, name),
+                sku = COALESCE(?, sku),
+                barcode = COALESCE(?, barcode),
+                sellingPrice = COALESCE(?, sellingPrice),
+                costPrice = COALESCE(?, costPrice),
+                stock = COALESCE(?, stock),
+                minStock = COALESCE(?, minStock),
+                unit = COALESCE(?, unit),
+                categoryId = COALESCE(?, categoryId),
+                storeId = COALESCE(?, storeId),
+                image = COALESCE(?, image),
+                description = COALESCE(?, description),
+                updatedAt = ?
+              WHERE id = ?;`,
+        args: [
+          updates.name !== undefined ? updates.name : null,
+          updates.sku !== undefined ? updates.sku : null,
+          updates.barcode !== undefined ? updates.barcode : null,
+          (updates.price !== undefined ? updates.price : updates.sellingPrice) ?? null,
+          updates.costPrice !== undefined ? updates.costPrice : null,
+          updates.stock !== undefined ? updates.stock : null,
+          updates.minStockAlert !== undefined ? updates.minStockAlert : null,
+          updates.unit !== undefined ? updates.unit : null,
+          updates.categoryId !== undefined ? updates.categoryId : null,
+          updates.storeId !== undefined ? updates.storeId : null,
+          updates.image !== undefined ? updates.image : null,
+          updates.description !== undefined ? updates.description : null,
+          now,
+          id,
+        ],
+      });
+    } catch (sqlErr: any) {
+      console.warn('Failed updating relational products table:', sqlErr.message);
+    }
+
+    res.json({ success: true, product: updatedItem });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }

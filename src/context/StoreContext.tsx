@@ -496,25 +496,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (json.success && json.hasData && json.data) {
         const data = json.data;
         if (Array.isArray(data.products) && data.products.length > 0) {
-          setProducts((prev) => {
-            const map = new Map<string, Product>();
-            // Load server products
-            data.products.forEach((p: Product) => {
-              if (p && p.id) map.set(p.id, p);
-            });
-            // Keep local products that might not be on server or are newer
-            prev.forEach((p: Product) => {
-              if (p && p.id) {
-                const existing = map.get(p.id);
-                if (!existing) {
-                  map.set(p.id, p);
-                } else if (p.updatedAt && existing.updatedAt && new Date(p.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
-                  map.set(p.id, { ...existing, ...p });
-                }
-              }
-            });
-            return Array.from(map.values());
-          });
+          setProducts(data.products);
         }
         if (Array.isArray(data.categories) && data.categories.length > 0) {
           setCategories((prev) => {
@@ -651,12 +633,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Periodic check every 10 seconds for seamless PC-to-HP sync
+    // Periodic check every 3 seconds for instant real-time PC-to-HP sync
     const syncInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         pullFromServer();
       }
-    }, 10000);
+    }, 3000);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
