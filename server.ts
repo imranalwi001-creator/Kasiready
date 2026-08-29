@@ -51,6 +51,44 @@ function saveDatabaseToDisk(data: any) {
   }
 }
 
+import { getTursoClient, initTursoSchema } from './src/lib/turso';
+
+// Turso Cloud Sync Handlers
+async function loadDatabaseFromTurso(): Promise<any> {
+  const client = getTursoClient();
+  if (!client) return null;
+  try {
+    await initTursoSchema(client);
+    const res = await client.execute("SELECT data_json FROM app_settings WHERE id = 'main_settings' LIMIT 1;");
+    if (res.rows.length > 0 && res.rows[0].data_json) {
+      const dataStr = String(res.rows[0].data_json);
+      return JSON.parse(dataStr);
+    }
+  } catch (err: any) {
+    console.warn('[Turso] Error loading from cloud:', err.message);
+  }
+  return null;
+}
+
+async function saveDatabaseToTurso(data: any): Promise<boolean> {
+  const client = getTursoClient();
+  if (!client) return false;
+  try {
+    await initTursoSchema(client);
+    const dataStr = JSON.stringify(data);
+    const now = new Date().toISOString();
+    await client.execute({
+      sql: "INSERT INTO app_settings (id, data_json, updatedAt) VALUES ('main_settings', ?, ?) ON CONFLICT(id) DO UPDATE SET data_json = excluded.data_json, updatedAt = excluded.updatedAt;",
+      args: [dataStr, now],
+    });
+    console.log('[Turso] Synced to cloud successfully at', now);
+    return true;
+  } catch (err: any) {
+    console.warn('[Turso] Error saving to cloud:', err.message);
+    return false;
+  }
+}
+
 // API Routes
 app.get('/api/health', (req, res) => {
   res.json({
@@ -58,31 +96,66 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     serverTime: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
     hasStoredDb: !!memoryDb || fs.existsSync(DB_FILE),
+    tursoConnected: !!getTursoClient(),
   });
 });
 
+// Test and configure Turso connection dynamically
+app.post('/api/turso/test', async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const { url, authToken } = req.body;
+    if (!url || !authToken) {
+      return res.status(400).json({ success: false, message: 'Database URL dan Auth Token wajib diisi' });
+    }
+    const client = getTursoClient(url, authToken);
+    if (!client) {
+      return res.status(400).json({ success: false, message: 'Gagal menginisialisasi client Turso' });
+    }
+    await initTursoSchema(client);
+    const ping = await client.execute('SELECT 1 as connected;');
+    const latency = Date.now() - startTime;
+    res.json({
+      success: true,
+      message: 'Koneksi ke database Turso berhasil terhubung (Always-ON)!',
+      latencyMs: latency,
+      connected: true,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message || 'Gagal terhubung ke Turso' });
+  }
+});
+
 // GET all synced data
-app.get('/api/pos/data', (req, res) => {
-  const db = loadDatabaseFromDisk();
-  if (db) {
-    res.json({
-      success: true,
-      hasData: true,
-      data: db,
-      timestamp: db.updatedAt || new Date().toISOString(),
-    });
-  } else {
-    res.json({
-      success: true,
-      hasData: false,
-      data: null,
-      message: 'No server database yet, client will push initial state',
-    });
+app.get('/api/pos/data', async (req, res) => {
+  try {
+    let db = await loadDatabaseFromTurso();
+    if (!db) {
+      db = loadDatabaseFromDisk();
+    }
+    if (db) {
+      res.json({
+        success: true,
+        hasData: true,
+        data: db,
+        source: getTursoClient() ? 'turso_cloud' : 'local_disk',
+        timestamp: db.updatedAt || new Date().toISOString(),
+      });
+    } else {
+      res.json({
+        success: true,
+        hasData: false,
+        data: null,
+        message: 'No server database yet, client will push initial state',
+      });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // POST sync full database with non-destructive merge
-app.post('/api/pos/sync', (req, res) => {
+app.post('/api/pos/sync', async (req, res) => {
   try {
     const payload = req.body;
     if (!payload || typeof payload !== 'object') {
@@ -179,6 +252,7 @@ app.post('/api/pos/sync', (req, res) => {
     };
 
     saveDatabaseToDisk(updatedDb);
+    await saveDatabaseToTurso(updatedDb);
 
     res.json({
       success: true,
