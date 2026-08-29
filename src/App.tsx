@@ -250,56 +250,82 @@ const MainAppContent: React.FC = () => {
   const roleBadge = getRoleBadge(currentUser.role);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#F8F9FA] dark:bg-[#070D18] text-slate-900 dark:text-slate-100 font-sans select-none">
-      {/* Clean Minimalist & Approachable Sidebar (Desktop) */}
+    <div className="flex h-screen w-screen overflow-hidden bg-[#FAF9F5] dark:bg-[#0E1218] text-[#1C1917] dark:text-[#F5F5F4] font-sans select-none">
+      {/* Continuum / Digisschool Warm Minimalist Sidebar (Desktop) */}
       <aside
         className={`hidden lg:flex ${
-          isSidebarCollapsed ? 'w-20 px-2' : 'w-64 px-4'
-        } bg-white dark:bg-slate-900 flex-col py-5 text-slate-800 dark:text-slate-100 shrink-0 z-30 justify-between select-none shadow-xs border-r border-slate-200/80 dark:border-slate-800 transition-all duration-300 ease-in-out`}
+          isSidebarCollapsed ? 'w-20 px-2.5' : 'w-64 px-4'
+        } bg-[#FAF9F5] dark:bg-[#121822] flex-col py-5 text-[#1C1917] dark:text-[#F5F5F4] shrink-0 z-30 justify-between select-none border-r border-[#EDE8DF] dark:border-[#202938] transition-all duration-300 ease-in-out`}
       >
         {/* Top Logo & Branding & Nav */}
-        <div className="space-y-5 overflow-y-auto pr-0.5 scrollbar-none">
+        <div className="space-y-4 overflow-y-auto pr-0.5 scrollbar-none">
           {/* Logo & Collapse/Expand Toggle Area */}
           {!isSidebarCollapsed ? (
-            <div className="flex items-center justify-between px-1">
-              <div
-                onClick={() => setActiveTab('pos')}
-                className="flex items-center gap-3 cursor-pointer transition-all active:scale-95 group min-w-0"
-              >
-                <BrandLogo
-                  logoType={settings.logoType}
-                  logoPreset={settings.logoPreset}
-                  logoUrl={settings.logoUrl}
-                  storeName={settings.name}
-                  size="sm"
-                />
-                <div className="min-w-0 truncate">
-                  <h1 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight font-sans flex items-center gap-1.5 truncate">
-                    <span>{settings.name || 'Kasiready POS'}</span>
-                  </h1>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate font-semibold">
-                    {settings.tagline || 'Sistem Kasir & Toko'}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <div
+                  onClick={() => setActiveTab('pos')}
+                  className="flex items-center gap-2.5 cursor-pointer transition-all active:scale-95 group min-w-0"
+                >
+                  <BrandLogo
+                    logoType={settings.logoType}
+                    logoPreset={settings.logoPreset}
+                    logoUrl={settings.logoUrl}
+                    storeName={settings.name}
+                    size="sm"
+                  />
+                  <div className="min-w-0 truncate">
+                    <h1 className="text-sm font-bold tracking-tight text-[#1C1917] dark:text-white leading-tight flex items-center gap-1.5 truncate">
+                      <span>{settings.name || 'Kasiready'}</span>
+                    </h1>
+                  </div>
+                </div>
+
+                {/* Sidebar Collapse Toggle Button */}
+                <button
+                  type="button"
+                  id="averion-collapse-sidebar-btn"
+                  onClick={() => setIsSidebarCollapsed(true)}
+                  className="p-1.5 rounded-xl text-[#78716C] hover:text-[#1C1917] hover:bg-[#F0EBE1] dark:hover:bg-slate-800 transition cursor-pointer shrink-0"
+                  title="Kecilkan Menu"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* User Role Card in Sidebar (Matching Screenshot) */}
+              <div className="px-3 py-2 rounded-2xl bg-[#F2EDE2] dark:bg-slate-800/70 border border-[#E5DFD2] dark:border-slate-700/60 flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-lg bg-[#322A23] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#D9B890]" />
+                </div>
+                <div className="min-w-0 flex-1 truncate">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-[#78716C] dark:text-slate-400">
+                    {roleBadge.label}
+                  </p>
+                  <p className="text-xs font-semibold text-[#1C1917] dark:text-white truncate">
+                    {currentUser.email || currentUser.name || 'kasir@toko.id'}
                   </p>
                 </div>
               </div>
 
-              {/* Sidebar Collapse Toggle Button */}
-              <button
-                type="button"
-                id="averion-collapse-sidebar-btn"
-                onClick={() => setIsSidebarCollapsed(true)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0"
-                title="Kecilkan Menu (Icon Only)"
-              >
-                <PanelLeftClose className="w-4 h-4" />
-              </button>
+              {/* Quick Search Page / Menu Input */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-[#78716C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  onClick={() => setIsSearchModalOpen(true)}
+                  readOnly
+                  placeholder="Cari halaman..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#F2EDE2] dark:bg-slate-800 text-xs text-[#1C1917] dark:text-white placeholder-[#78716C] border border-transparent hover:border-[#DDD6C8] cursor-pointer transition focus:outline-none"
+                />
+              </div>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
               <div
                 onClick={() => setActiveTab('pos')}
                 className="cursor-pointer hover:scale-105 transition shrink-0"
-                title={settings.name || 'Kasiready POS'}
+                title={settings.name || 'Kasiready'}
               >
                 <BrandLogo
                   logoType={settings.logoType}
@@ -315,15 +341,15 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 id="averion-expand-sidebar-btn"
                 onClick={() => setIsSidebarCollapsed(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                className="p-1.5 rounded-xl text-[#78716C] hover:text-[#1C1917] hover:bg-[#F0EBE1] dark:hover:bg-slate-800 transition cursor-pointer"
                 title="Perluas Menu"
               >
-                <PanelLeftOpen className="w-4 h-4 text-[#00A876]" />
+                <PanelLeftOpen className="w-4 h-4 text-[#322A23] dark:text-white" />
               </button>
             </div>
           )}
 
-          {/* Primary Nav List */}
+          {/* Primary Nav List (Styled Exactly Like Continuum/Digisschool in Screenshot) */}
           <nav className="space-y-1 pt-1">
             {primaryNavItems.map((item) => {
               const Icon = item.icon;
@@ -336,15 +362,15 @@ const MainAppContent: React.FC = () => {
                     id={`averion-sidebar-nav-${item.id}`}
                     onClick={() => setActiveTab(item.id)}
                     title={item.label}
-                    className={`w-full relative flex items-center justify-center p-3 rounded-xl transition-all cursor-pointer group ${
+                    className={`w-full relative flex items-center justify-center p-3 rounded-2xl transition-all cursor-pointer group ${
                       isActive
-                        ? 'bg-[#00A876] text-white shadow-xs font-bold'
-                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                        ? 'bg-[#EAE5DB] dark:bg-slate-800 text-[#1C1917] dark:text-white font-bold shadow-2xs'
+                        : 'text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800/60 hover:text-[#1C1917]'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white'}`} />
+                    <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-[#1C1917] dark:text-white' : 'text-[#78716C] group-hover:text-[#1C1917]'}`} />
                     {item.badge !== null && item.badge !== undefined && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-900" />
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#D9B890] ring-2 ring-[#FAF9F5] dark:ring-slate-900" />
                     )}
                   </button>
                 );
@@ -355,20 +381,20 @@ const MainAppContent: React.FC = () => {
                   key={item.id}
                   id={`averion-sidebar-nav-${item.id}`}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-[#00A876] text-white shadow-xs font-bold'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-semibold'
+                      ? 'bg-[#EAE5DB] dark:bg-slate-800 text-[#1C1917] dark:text-white font-bold shadow-2xs'
+                      : 'text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800/60 hover:text-[#1C1917] font-medium'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#1C1917] dark:text-white' : 'text-[#78716C]'}`} />
                     <span>{item.label}</span>
                   </div>
                   {item.badge !== null && item.badge !== undefined && (
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        isActive ? 'bg-white/20 text-white' : item.badgeColor
+                        isActive ? 'bg-[#322A23] text-white' : 'bg-[#EAE5DB] text-[#78716C]'
                       }`}
                     >
                       {item.badge}
@@ -387,7 +413,7 @@ const MainAppContent: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsKontenOpen(!isKontenOpen)}
-                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-600 cursor-pointer"
+                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#A8A29E] hover:text-[#78716C] cursor-pointer"
                 >
                   <span>KONTEN</span>
                   <ChevronDown
@@ -400,9 +426,9 @@ const MainAppContent: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsDocModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-2xl text-xs font-medium text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800 hover:text-[#1C1917] transition cursor-pointer"
                     >
-                      <BookOpen className="w-4 h-4 shrink-0 text-slate-400" />
+                      <BookOpen className="w-4 h-4 shrink-0 text-[#78716C]" />
                       <span>Dokumentasi</span>
                     </button>
                   </div>
@@ -414,7 +440,7 @@ const MainAppContent: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsMarketingOpen(!isMarketingOpen)}
-                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-600 cursor-pointer"
+                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#A8A29E] hover:text-[#78716C] cursor-pointer"
                 >
                   <span>MARKETING & GROWTH</span>
                   <ChevronDown
@@ -427,9 +453,9 @@ const MainAppContent: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsPromoModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-2xl text-xs font-medium text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800 hover:text-[#1C1917] transition cursor-pointer"
                     >
-                      <Tag className="w-4 h-4 shrink-0 text-slate-400" />
+                      <Tag className="w-4 h-4 shrink-0 text-[#78716C]" />
                       <span>Promosi & Diskon</span>
                     </button>
                   </div>
@@ -441,7 +467,7 @@ const MainAppContent: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsConfigOpen(!isConfigOpen)}
-                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-600 cursor-pointer"
+                  className="w-full flex items-center justify-between px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#A8A29E] hover:text-[#78716C] cursor-pointer"
                 >
                   <span>KONFIGURASI</span>
                   <ChevronDown
@@ -455,10 +481,10 @@ const MainAppContent: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setActiveTab('settings')}
-                        className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                        className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-2xl text-xs transition cursor-pointer ${
                           activeTab === 'settings'
-                            ? 'bg-[#00A876] text-white font-bold'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                            ? 'bg-[#EAE5DB] dark:bg-slate-800 text-[#1C1917] dark:text-white font-bold'
+                            : 'text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800 hover:text-[#1C1917] font-medium'
                         }`}
                       >
                         <Settings className="w-4 h-4 shrink-0" />
@@ -469,18 +495,18 @@ const MainAppContent: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsActivityModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-2xl text-xs font-medium text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800 hover:text-[#1C1917] transition cursor-pointer"
                     >
-                      <Clock className="w-4 h-4 shrink-0 text-slate-400" />
+                      <Clock className="w-4 h-4 shrink-0 text-[#78716C]" />
                       <span>Log Aktivitas</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setIsLicenseModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-2xl text-xs font-medium text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800 hover:text-[#1C1917] transition cursor-pointer"
                     >
-                      <ShieldCheck className="w-4 h-4 shrink-0 text-slate-400" />
+                      <ShieldCheck className="w-4 h-4 shrink-0 text-[#78716C]" />
                       <span>Lisensi POS</span>
                     </button>
                   </div>
@@ -488,12 +514,12 @@ const MainAppContent: React.FC = () => {
               </div>
             </>
           ) : (
-            <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col items-center">
+            <div className="space-y-1.5 pt-2 border-t border-[#EDE8DF] dark:border-slate-800 flex flex-col items-center">
               <button
                 type="button"
                 onClick={() => setIsDocModalOpen(true)}
                 title="Dokumentasi"
-                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 transition cursor-pointer"
+                className="w-full flex items-center justify-center p-3 rounded-2xl text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800 hover:text-[#1C1917] transition cursor-pointer"
               >
                 <BookOpen className="w-5 h-5 shrink-0" />
               </button>
@@ -502,7 +528,7 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 onClick={() => setIsPromoModalOpen(true)}
                 title="Promosi & Diskon"
-                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 transition cursor-pointer"
+                className="w-full flex items-center justify-center p-3 rounded-2xl text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800 hover:text-[#1C1917] transition cursor-pointer"
               >
                 <Tag className="w-5 h-5 shrink-0" />
               </button>
@@ -512,10 +538,10 @@ const MainAppContent: React.FC = () => {
                   type="button"
                   onClick={() => setActiveTab('settings')}
                   title="Pengaturan Toko"
-                  className={`w-full flex items-center justify-center p-3 rounded-xl transition cursor-pointer ${
+                  className={`w-full flex items-center justify-center p-3 rounded-2xl transition cursor-pointer ${
                     activeTab === 'settings'
-                      ? 'bg-[#00A876] text-white font-bold'
-                      : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700'
+                      ? 'bg-[#EAE5DB] dark:bg-slate-800 text-[#1C1917] font-bold'
+                      : 'text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800 hover:text-[#1C1917]'
                   }`}
                 >
                   <Settings className="w-5 h-5 shrink-0" />
@@ -526,7 +552,7 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 onClick={() => setIsActivityModalOpen(true)}
                 title="Activity Logs"
-                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 transition cursor-pointer"
+                className="w-full flex items-center justify-center p-3 rounded-2xl text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800 hover:text-[#1C1917] transition cursor-pointer"
               >
                 <Clock className="w-5 h-5 shrink-0" />
               </button>
@@ -535,7 +561,7 @@ const MainAppContent: React.FC = () => {
                 type="button"
                 onClick={() => setIsLicenseModalOpen(true)}
                 title="License Pro"
-                className="w-full flex items-center justify-center p-3 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 transition cursor-pointer"
+                className="w-full flex items-center justify-center p-3 rounded-2xl text-[#78716C] hover:bg-[#F2EDE2] dark:hover:bg-slate-800 hover:text-[#1C1917] transition cursor-pointer"
               >
                 <ShieldCheck className="w-5 h-5 shrink-0" />
               </button>
@@ -544,60 +570,26 @@ const MainAppContent: React.FC = () => {
         </div>
 
         {/* Bottom Workspace Card & Logout Button */}
-        <div className="pt-4 border-t border-slate-200/80 dark:border-slate-800 space-y-2.5 shrink-0">
+        <div className="pt-3 border-t border-[#EDE8DF] dark:border-slate-800 space-y-2 shrink-0">
           {!isSidebarCollapsed ? (
             <>
-              {/* Studio Card */}
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between">
-                <div className="flex items-center gap-2.5 truncate">
-                  <div className="w-7 h-7 rounded-xl bg-[#00A876]/15 border border-[#00A876]/30 flex items-center justify-center text-[#00A876] shrink-0">
-                    <Sparkles className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="truncate">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate leading-tight">
-                      Kasiready Pro
-                    </p>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate block font-medium">
-                      Cloud Multi-Cabang
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsDocModalOpen(true)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-700 transition cursor-pointer"
-                  title="Bantuan"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Logout Button */}
+              {/* Logout Button (Matching Screenshot "Keluar") */}
               <button
                 type="button"
                 onClick={logout}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-medium text-[#78716C] hover:text-rose-600 hover:bg-[#F2EDE2] dark:hover:bg-slate-800 transition cursor-pointer"
               >
-                <LogOut className="w-4 h-4 rotate-180 text-rose-500" />
-                <span>Keluar Akun</span>
+                <LogOut className="w-4 h-4 rotate-180" />
+                <span>Keluar</span>
               </button>
             </>
           ) : (
             <div className="flex flex-col items-center gap-2">
               <button
                 type="button"
-                onClick={() => setIsDocModalOpen(true)}
-                title="Bantuan"
-                className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[#00A876] hover:bg-slate-100 transition cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4" />
-              </button>
-
-              <button
-                type="button"
                 onClick={logout}
-                title="Keluar Akun"
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                title="Keluar"
+                className="w-10 h-10 rounded-2xl flex items-center justify-center text-[#78716C] hover:text-rose-600 hover:bg-[#F2EDE2] dark:hover:bg-slate-800 transition cursor-pointer"
               >
                 <LogOut className="w-4 h-4 rotate-180" />
               </button>

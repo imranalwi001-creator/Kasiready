@@ -152,13 +152,13 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
       {/* Top Header & Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#00A876] border border-emerald-200/80 flex items-center justify-center">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#1C1917] tracking-tight flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-2xl bg-[#F4F1EA] text-[#322A23] border border-[#E2DDD2] flex items-center justify-center">
               <Package className="w-4 h-4" />
             </div>
             <span>Manajemen Inventaris Multi-Toko</span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
+          <p className="text-xs sm:text-sm text-[#78716C] mt-1 font-medium">
             Kelola stok per cabang, transfer persediaan, kategori, dan automasi peringatan stok menipis
           </p>
         </div>
@@ -167,9 +167,9 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
           <button
             type="button"
             onClick={() => setIsStoreModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-[#E2DDD2] bg-white hover:bg-[#F4F1EA] text-[#1C1917] text-xs font-semibold shadow-2xs transition cursor-pointer"
           >
-            <Building2 className="w-3.5 h-3.5 text-[#00A876]" />
+            <Building2 className="w-3.5 h-3.5 text-[#D9B890]" />
             <span>Kelola Cabang ({stores.length})</span>
           </button>
 
@@ -179,27 +179,27 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
               setTransferTargetProduct(null);
               setIsTransferModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-200/80 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-[#E2DDD2] bg-[#F4F1EA] hover:bg-[#EAE5DB] text-[#1C1917] text-xs font-semibold shadow-2xs transition cursor-pointer"
           >
-            <ArrowRightLeft className="w-3.5 h-3.5 text-[#00A876]" />
-            <span>Transfer Stok Cabang</span>
+            <ArrowRightLeft className="w-3.5 h-3.5 text-[#322A23]" />
+            <span>Transfer Stok</span>
           </button>
 
           <button
             id="open-audit-logs-btn"
             onClick={() => setIsAuditLogsOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-[#E2DDD2] bg-white hover:bg-[#F4F1EA] text-[#1C1917] text-xs font-semibold shadow-2xs transition cursor-pointer"
           >
-            <History className="w-3.5 h-3.5 text-slate-500" />
+            <History className="w-3.5 h-3.5 text-[#78716C]" />
             <span>Riwayat Audit</span>
           </button>
 
           <button
             id="open-categories-btn"
             onClick={() => setIsCategoryModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-[#E2DDD2] bg-white hover:bg-[#F4F1EA] text-[#1C1917] text-xs font-semibold shadow-2xs transition cursor-pointer"
           >
-            <Layers className="w-3.5 h-3.5 text-slate-500" />
+            <Layers className="w-3.5 h-3.5 text-[#78716C]" />
             <span>Kategori</span>
           </button>
 
@@ -209,7 +209,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
               setEditingProduct(null);
               setIsProductModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#00A876] hover:bg-[#009267] text-white text-xs font-bold shadow-md shadow-[#00A876]/25 transition active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-[#322A23] hover:bg-[#231D18] text-white text-xs font-bold shadow-xs transition active:scale-95 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Tambah Produk</span>
@@ -220,69 +220,69 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
       {/* KPI Cards Banner */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Produk */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 text-xs mb-2 font-semibold">
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-[#EDE8DF] shadow-2xs">
+          <div className="flex items-center justify-between text-[#78716C] text-xs mb-2 font-semibold">
             <span>Total Item Produk</span>
-            <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+            <div className="w-7 h-7 rounded-xl bg-[#F4F1EA] flex items-center justify-center text-[#1C1917]">
               <Package className="w-3.5 h-3.5" />
             </div>
           </div>
-          <p className="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">{totalProducts}</p>
-          <p className="text-[11px] text-slate-400 mt-1 font-medium">
+          <p className="text-xl sm:text-2xl font-bold text-[#1C1917] tabular-nums">{totalProducts}</p>
+          <p className="text-[11px] text-[#78716C] mt-1 font-medium">
             {formatNumber(totalStockUnits)} unit stok fisik aktif
           </p>
         </div>
 
         {/* Nilai Aset Stok */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 text-xs mb-2 font-semibold">
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-[#EDE8DF] shadow-2xs">
+          <div className="flex items-center justify-between text-[#78716C] text-xs mb-2 font-semibold">
             <span>Nilai Aset Persediaan</span>
-            <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-xl bg-[#F4F1EA] text-[#D9B890] flex items-center justify-center">
               <Coins className="w-3.5 h-3.5" />
             </div>
           </div>
-          <p className="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
+          <p className="text-xl sm:text-2xl font-bold text-[#1C1917] tabular-nums">
             {formatRupiah(totalAssetValue)}
           </p>
-          <p className="text-[11px] text-slate-400 mt-1 font-medium">Estimasi modal persediaan</p>
+          <p className="text-[11px] text-[#78716C] mt-1 font-medium">Estimasi modal persediaan</p>
         </div>
 
         {/* Stok Menipis (Automasi <= 10) */}
         <div
           onClick={() => setStockStatusFilter(stockStatusFilter === 'low' ? 'all' : 'low')}
-          className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
+          className={`p-4 sm:p-5 rounded-3xl border transition-all cursor-pointer shadow-2xs ${
             stockStatusFilter === 'low'
-              ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-400/30'
-              : 'bg-white border-slate-200/80 hover:border-amber-300'
+              ? 'bg-[#FEE2E2] border-rose-300'
+              : 'bg-white border-[#EDE8DF] hover:border-[#D9B890]'
           }`}
         >
-          <div className="flex items-center justify-between text-slate-500 text-xs mb-2 font-semibold">
-            <span className="text-amber-700">Stok Menipis (&le;10)</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+          <div className="flex items-center justify-between text-[#78716C] text-xs mb-2 font-semibold">
+            <span className="text-rose-700">Stok Menipis (&le;10)</span>
+            <div className="w-7 h-7 rounded-xl bg-[#FEE2E2] text-rose-600 flex items-center justify-center">
               <AlertTriangle className="w-3.5 h-3.5" />
             </div>
           </div>
-          <p className="text-xl sm:text-2xl font-black text-amber-600 tabular-nums">{lowStockCount}</p>
-          <p className="text-[11px] text-slate-400 mt-1 font-medium">Klik untuk filter produk menipis</p>
+          <p className="text-xl sm:text-2xl font-bold text-rose-600 tabular-nums">{lowStockCount}</p>
+          <p className="text-[11px] text-[#78716C] mt-1 font-medium">Klik untuk filter</p>
         </div>
 
         {/* Stok Habis (0 Unit) */}
         <div
           onClick={() => setStockStatusFilter(stockStatusFilter === 'out' ? 'all' : 'out')}
-          className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
+          className={`p-4 sm:p-5 rounded-3xl border transition-all cursor-pointer shadow-2xs ${
             stockStatusFilter === 'out'
-              ? 'bg-rose-50/80 border-rose-400 ring-2 ring-rose-400/30'
-              : 'bg-white border-slate-200/80 hover:border-rose-300'
+              ? 'bg-[#FEE2E2] border-rose-300'
+              : 'bg-white border-[#EDE8DF] hover:border-rose-300'
           }`}
         >
-          <div className="flex items-center justify-between text-slate-500 text-xs mb-2 font-semibold">
+          <div className="flex items-center justify-between text-[#78716C] text-xs mb-2 font-semibold">
             <span className="text-rose-700">Stok Habis (0)</span>
-            <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-xl bg-[#FEE2E2] text-rose-600 flex items-center justify-center">
               <TrendingDown className="w-3.5 h-3.5" />
             </div>
           </div>
-          <p className="text-xl sm:text-2xl font-black text-rose-600 tabular-nums">{outOfStockCount}</p>
-          <p className="text-[11px] text-slate-400 mt-1 font-medium">Klik untuk filter produk habis</p>
+          <p className="text-xl sm:text-2xl font-bold text-rose-600 tabular-nums">{outOfStockCount}</p>
+          <p className="text-[11px] text-[#78716C] mt-1 font-medium">Klik untuk filter</p>
         </div>
       </div>
 

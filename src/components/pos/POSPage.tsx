@@ -329,14 +329,14 @@ export const POSPage: React.FC = () => {
         </div>
       )}
 
-      {/* Store Branch & Cash Drawer Status Top Bar */}
-      <div className="bg-slate-900 text-white px-3 sm:px-4 py-2 rounded-2xl mb-2 sm:mb-3 flex items-center justify-between shadow-xs shrink-0 gap-2">
+      {/* Store Branch & Cash Drawer Status Top Bar (Warm Minimalist Bar) */}
+      <div className="bg-white border border-[#EDE8DF] text-[#1C1917] px-3.5 sm:px-5 py-2.5 rounded-3xl mb-3 flex items-center justify-between shadow-2xs shrink-0 gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <Building2 className="w-4 h-4 text-[#D9B890] shrink-0" />
           <select
             value={activeStoreId}
             onChange={(e) => setActiveStoreId(e.target.value)}
-            className="bg-slate-800 text-white text-xs px-2.5 py-1.5 rounded-xl border border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer max-w-[170px] sm:max-w-xs truncate"
+            className="bg-[#F4F1EA] text-[#1C1917] text-xs px-3 py-1.5 rounded-2xl border border-[#E2DDD2] font-bold focus:outline-none focus:ring-2 focus:ring-[#D9B890] cursor-pointer max-w-[170px] sm:max-w-xs truncate"
           >
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
@@ -353,34 +353,34 @@ export const POSPage: React.FC = () => {
             type="button"
             id="btn-saved-transactions"
             onClick={() => setIsSavedTransactionsOpen(true)}
-            className={`px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs border ${
+            className={`px-3 py-1.5 rounded-2xl text-[11px] sm:text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer border ${
               savedTransactions.length > 0
-                ? 'bg-indigo-600 border-indigo-500 text-white animate-pulse'
-                : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+                ? 'bg-[#D9B890] border-[#CBA87D] text-[#1C1917] font-bold'
+                : 'bg-[#F4F1EA] border-[#E2DDD2] text-[#78716C] hover:text-[#1C1917]'
             }`}
             title="Daftar Transaksi Tersimpan / Diparkir"
           >
             <BookmarkCheck className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Tersimpan</span>
             {savedTransactions.length > 0 && (
-              <span className="bg-white text-indigo-900 px-1.5 py-0.2 rounded-full font-black text-[10px]">
+              <span className="bg-[#322A23] text-white px-1.5 py-0.2 rounded-full font-black text-[10px]">
                 {savedTransactions.length}
               </span>
             )}
           </button>
 
-          <div className="hidden md:flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-700 text-xs">
-            <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="text-slate-400 text-[11px]">Modal:</span>
-            <span className="font-mono font-bold text-amber-300">
+          <div className="hidden md:flex items-center gap-1.5 bg-[#F4F1EA] px-3 py-1.5 rounded-2xl border border-[#E2DDD2] text-xs">
+            <Coins className="w-3.5 h-3.5 text-[#D9B890] shrink-0" />
+            <span className="text-[#78716C] text-[11px] font-medium">Modal:</span>
+            <span className="font-bold text-[#1C1917] tabular-nums">
               {formatRupiah(todaySummary.openingFloat)}
             </span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-700 text-xs">
-            <Wallet className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="text-slate-400 text-[11px]">Kas Laci:</span>
-            <span className="font-mono font-bold text-emerald-300">
+          <div className="hidden sm:flex items-center gap-1.5 bg-[#F4F1EA] px-3 py-1.5 rounded-2xl border border-[#E2DDD2] text-xs">
+            <Wallet className="w-3.5 h-3.5 text-[#00A876] shrink-0" />
+            <span className="text-[#78716C] text-[11px] font-medium">Kas Laci:</span>
+            <span className="font-bold text-[#1C1917] tabular-nums">
               {formatRupiah(todaySummary.expectedCashInDrawer)}
             </span>
           </div>
@@ -388,7 +388,7 @@ export const POSPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsAddExpenseModalOpen(true)}
-            className="px-2.5 py-1.5 bg-rose-600/90 hover:bg-rose-600 text-white text-[11px] sm:text-xs font-bold rounded-xl flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
+            className="px-3 py-1.5 bg-[#FEE2E2] hover:bg-[#FED7D7] text-[#991B1B] border border-[#FECACA] text-[11px] sm:text-xs font-semibold rounded-2xl flex items-center gap-1 transition active:scale-95 cursor-pointer"
             title="Catat Kas Keluar"
           >
             <TrendingDown className="w-3.5 h-3.5" />
@@ -398,25 +398,25 @@ export const POSPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsOpenShiftModalOpen(true)}
-            className="px-2.5 py-1.5 bg-emerald-600/90 hover:bg-emerald-600 text-white text-[11px] sm:text-xs font-bold rounded-xl flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
+            className="px-3 py-1.5 bg-[#322A23] hover:bg-[#231D18] text-white text-[11px] sm:text-xs font-semibold rounded-2xl flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs"
             title="Atur Modal Awal Kasir"
           >
-            <Coins className="w-3.5 h-3.5" />
+            <Coins className="w-3.5 h-3.5 text-[#D9B890]" />
             <span className="hidden sm:inline">Modal Kas</span>
           </button>
         </div>
       </div>
 
       {/* Main Split Layout: Catalog & Cart Sidebar */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-2.5 sm:gap-4 overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row gap-3 sm:gap-4 overflow-hidden min-h-0">
         {/* Left Section: Catalog (Search, Categories, Product Grid) */}
-        <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white sm:bg-slate-50/70 rounded-2xl sm:rounded-3xl border border-slate-200/80 p-2.5 sm:p-4">
+        <section className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white rounded-3xl border border-[#EDE8DF] p-3 sm:p-5 shadow-2xs">
           {/* Top Search & Scanner Action Bar */}
-          <div className="space-y-2 shrink-0 pb-1.5">
+          <div className="space-y-2.5 shrink-0 pb-2">
             <div className="flex items-center gap-2">
               {/* Search Input */}
               <div className="relative flex-1 flex items-center min-w-0">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                <Search className="w-4 h-4 text-[#78716C] absolute left-3.5 pointer-events-none" />
                 <input
                   ref={searchInputRef}
                   id="pos-search-product-input"
@@ -425,12 +425,12 @@ export const POSPage: React.FC = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={handleKeyDownSearch}
                   placeholder="Cari nama produk, SKU, barcode..."
-                  className="w-full pl-9 pr-8 py-2 sm:py-2.5 bg-slate-50 sm:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00A876] focus:bg-white transition"
+                  className="w-full pl-10 pr-8 py-2.5 bg-[#F7F6F2] hover:bg-white focus:bg-white border border-[#E2DDD2] focus:border-[#D9B890] rounded-2xl text-xs sm:text-sm font-semibold text-[#1C1917] placeholder-[#78716C] focus:outline-none transition shadow-2xs"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                    className="absolute right-2.5 text-[#78716C] hover:text-[#1C1917] p-1 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -442,10 +442,10 @@ export const POSPage: React.FC = () => {
                 type="button"
                 id="open-digital-price-tag-btn"
                 onClick={() => setIsDigitalPriceTagOpen(true)}
-                className="p-2 sm:px-3 sm:py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold flex items-center gap-1.5 shrink-0 transition active:scale-95 cursor-pointer"
+                className="p-2 sm:px-3.5 sm:py-2.5 rounded-2xl bg-[#F7F6F2] hover:bg-[#EAE5DB] text-[#1C1917] border border-[#E2DDD2] text-xs font-semibold flex items-center gap-1.5 shrink-0 transition active:scale-95 cursor-pointer"
                 title="Buka Layar Tag Harga Digital Pelanggan"
               >
-                <Tag className="w-4 h-4 text-amber-600" />
+                <Tag className="w-4 h-4 text-[#D9B890]" />
                 <span className="hidden sm:inline">Tag Harga</span>
               </button>
 
@@ -454,27 +454,24 @@ export const POSPage: React.FC = () => {
                 type="button"
                 id="pos-open-camera-scanner-btn"
                 onClick={() => setIsBarcodeScannerOpen(true)}
-                className="p-2 sm:px-3 sm:py-2.5 rounded-xl bg-[#00A876] hover:bg-[#009267] text-white text-xs font-bold flex items-center gap-1.5 shrink-0 transition active:scale-95 shadow-md shadow-[#00A876]/25 cursor-pointer"
-                title="Scan Barcode Kamera"
+                className="px-3.5 py-2.5 rounded-2xl bg-[#F7F6F2] hover:bg-[#EAE5DB] text-[#1C1917] border border-[#E2DDD2] text-xs font-semibold flex items-center gap-1.5 shrink-0 transition active:scale-95 cursor-pointer"
+                title="Pindai barcode fisik barang menggunakan kamera HP / Webcam"
               >
-                <Camera className="w-4 h-4" />
-                <span className="hidden sm:inline">Scan</span>
+                <Camera className="w-4 h-4 text-[#78716C]" />
+                <span className="hidden sm:inline">Scan Barcode</span>
               </button>
 
-              {/* Quick Sort Dropdown */}
-              <div className="hidden sm:flex items-center gap-1 bg-white px-2 py-2 rounded-xl border border-slate-200 text-xs shrink-0">
-                <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="bg-transparent text-slate-700 text-xs font-medium focus:outline-none cursor-pointer"
-                >
-                  <option value="default">Urutan Standar</option>
-                  <option value="price_asc">Harga Terendah</option>
-                  <option value="price_desc">Harga Tertinggi</option>
-                  <option value="stock_desc">Stok Terbanyak</option>
-                </select>
-              </div>
+              {/* Add Product Shortcut Button */}
+              <button
+                type="button"
+                id="pos-add-product-quick-btn"
+                onClick={() => setActiveTab('inventory')}
+                className="p-2 sm:px-3.5 sm:py-2.5 rounded-2xl bg-[#322A23] hover:bg-[#231D18] text-white text-xs font-bold flex items-center gap-1.5 shrink-0 transition active:scale-95 cursor-pointer shadow-xs"
+                title="Buka Inventaris untuk Tambah Produk Baru"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span className="hidden md:inline">Tambah Produk</span>
+              </button>
             </div>
 
             {/* Category Filter Pills (Horizontal Scroll) */}
@@ -482,7 +479,7 @@ export const POSPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('digital-products')}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white shadow-xs"
+                className="px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 shrink-0 bg-[#00A876] hover:bg-[#009267] text-white shadow-2xs"
                 title="Buka Penjualan Pulsa, Paket Data, Token PLN & PPOB"
               >
                 <Zap className="w-3.5 h-3.5 fill-white" />
@@ -491,18 +488,18 @@ export const POSPage: React.FC = () => {
               <button
                 id="filter-category-all"
                 onClick={() => setSelectedCategoryId('all')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
                   selectedCategoryId === 'all'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80 border border-transparent'
+                    ? 'bg-[#EAE5DB] text-[#1C1917] font-bold shadow-2xs'
+                    : 'bg-[#F4F1EA] text-[#78716C] hover:bg-[#EAE5DB] hover:text-[#1C1917]'
                 }`}
               >
                 <span>Semua Kategori</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                     selectedCategoryId === 'all'
-                      ? 'bg-white/20 text-white'
-                      : 'bg-slate-200/60 text-slate-500'
+                      ? 'bg-[#322A23] text-white'
+                      : 'bg-[#E2DDD2] text-[#78716C]'
                   }`}
                 >
                   {branchProducts.length}
@@ -516,16 +513,16 @@ export const POSPage: React.FC = () => {
                     key={c.id}
                     type="button"
                     onClick={() => setSelectedCategoryId(c.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-2xl text-xs font-semibold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
                       isSelected
-                        ? 'bg-[#00A876] text-white shadow-xs'
-                        : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'
+                        ? 'bg-[#EAE5DB] text-[#1C1917] font-bold shadow-2xs'
+                        : 'bg-[#F4F1EA] text-[#78716C] hover:bg-[#EAE5DB] hover:text-[#1C1917]'
                     }`}
                   >
                     <span>{c.name}</span>
                     <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                        isSelected ? 'bg-white/20 text-white' : 'bg-slate-200/60 text-slate-500'
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        isSelected ? 'bg-[#322A23] text-white' : 'bg-[#E2DDD2] text-[#78716C]'
                       }`}
                     >
                       {count}
@@ -540,10 +537,10 @@ export const POSPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setQuickTagFilter('all')}
-                className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer shrink-0 ${
+                className={`px-3 py-1 rounded-xl font-semibold text-[11px] transition cursor-pointer shrink-0 ${
                   quickTagFilter === 'all'
-                    ? 'bg-slate-800 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-[#322A23] text-white font-bold'
+                    : 'bg-[#F4F1EA] text-[#78716C] hover:bg-[#EAE5DB] hover:text-[#1C1917]'
                 }`}
               >
                 Semua Status
@@ -551,38 +548,26 @@ export const POSPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setQuickTagFilter('ready')}
-                className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                className={`px-3 py-1 rounded-xl font-semibold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0 ${
                   quickTagFilter === 'ready'
-                    ? 'bg-[#00A876] text-white'
-                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60'
+                    ? 'bg-[#D9B890] text-[#1C1917] font-bold'
+                    : 'bg-[#F4F1EA] text-[#78716C] hover:bg-[#EAE5DB]'
                 }`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00A876]" />
                 <span>Ready ({branchProducts.filter((p) => p.stock > 0).length})</span>
               </button>
               <button
                 type="button"
                 onClick={() => setQuickTagFilter('low_stock')}
-                className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0 ${
+                className={`px-3 py-1 rounded-xl font-semibold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0 ${
                   quickTagFilter === 'low_stock'
-                    ? 'bg-rose-600 text-white'
-                    : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/60'
+                    ? 'bg-rose-600 text-white font-bold'
+                    : 'bg-[#FEE2E2] text-rose-700 hover:bg-[#FED7D7]'
                 }`}
               >
                 <AlertTriangle className="w-3 h-3" />
                 <span>Menipis ({branchProducts.filter((p) => p.stock > 0 && p.stock <= (p.minStockAlert || 10)).length})</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setQuickTagFilter('promo')}
-                className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer flex items-center gap-1 shrink-0 ${
-                  quickTagFilter === 'promo'
-                    ? 'bg-amber-500 text-white'
-                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/60'
-                }`}
-              >
-                <Flame className="w-3 h-3 text-amber-500" />
-                <span>Unggulan</span>
               </button>
             </div>
           </div>
@@ -590,18 +575,18 @@ export const POSPage: React.FC = () => {
           {/* Product Grid Area (Scrollable) */}
           <div className="flex-1 overflow-y-auto pr-1">
             {filteredProducts.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                <PackageX className="w-12 h-12 text-slate-300 mx-auto" />
-                <h4 className="font-bold text-slate-700 text-sm">Produk Tidak Ditemukan</h4>
-                <p className="text-xs text-slate-400 max-w-sm">
+              <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-3 bg-[#FAF9F5] rounded-3xl border border-dashed border-[#EDE8DF]">
+                <PackageX className="w-12 h-12 text-[#A8A29E] mx-auto" />
+                <h4 className="font-bold text-[#1C1917] text-sm">Produk Tidak Ditemukan</h4>
+                <p className="text-xs text-[#78716C] max-w-sm">
                   {searchQuery
                     ? `Tidak ada produk yang cocok dengan kata kunci "${searchQuery}" di cabang ${activeStore?.name}.`
-                    : `Belum ada produk terdaftar untuk cabang ${activeStore?.name}. Buka menu Inventaris untuk menambah produk.`}
+                    : `Belum ada produk terdaftar untuk cabang ${activeStore?.name}.`}
                 </p>
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-100 cursor-pointer shadow-xs"
+                    className="px-3.5 py-1.5 rounded-2xl bg-white border border-[#E2DDD2] text-[#1C1917] text-xs font-semibold hover:bg-[#F4F1EA] cursor-pointer shadow-2xs"
                   >
                     Hapus Pencarian
                   </button>
@@ -626,16 +611,16 @@ export const POSPage: React.FC = () => {
                           addToCart(product);
                         }
                       }}
-                      className={`group relative bg-white p-3 rounded-2xl border transition-all duration-200 flex flex-col justify-between cursor-pointer select-none ${
+                      className={`group relative bg-white p-3 rounded-3xl border transition-all duration-200 flex flex-col justify-between cursor-pointer select-none ${
                         isOutOfStock
-                          ? 'opacity-60 border-slate-200 bg-slate-50 cursor-not-allowed'
+                          ? 'opacity-60 border-[#E8E4DA] bg-[#FAF9F5] cursor-not-allowed'
                           : isLowStock
                           ? 'border-rose-200 hover:border-rose-400 hover:shadow-md'
-                          : 'border-slate-200/90 hover:border-[#00A876] hover:shadow-md hover:-translate-y-0.5'
+                          : 'border-[#EDE8DF] hover:border-[#D9B890] hover:shadow-md hover:-translate-y-0.5'
                       }`}
                     >
                       {/* Product Thumbnail & Badges */}
-                      <div className="w-full h-26 sm:h-28 bg-slate-100 rounded-xl mb-2.5 relative overflow-hidden shrink-0">
+                      <div className="w-full h-26 sm:h-28 bg-[#F4F1EA] rounded-2xl mb-2.5 relative overflow-hidden shrink-0">
                         <img
                           src={product.image}
                           alt={product.name}
@@ -650,28 +635,28 @@ export const POSPage: React.FC = () => {
                         {/* Stock Tag Top Right */}
                         <div className="absolute top-1.5 right-1.5">
                           {isOutOfStock ? (
-                            <span className="bg-slate-900 text-white px-2 py-0.5 rounded-md text-[9px] font-bold uppercase shadow-xs">
+                            <span className="bg-[#1C1917] text-white px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase shadow-2xs">
                               Habis
                             </span>
                           ) : isLowStock ? (
-                            <span className="bg-rose-600 text-white px-2 py-0.5 rounded-md text-[10px] font-bold shadow-xs">
+                            <span className="bg-rose-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold shadow-2xs">
                               Stok: {product.stock}
                             </span>
                           ) : (
-                            <span className="bg-white/95 backdrop-blur-xs text-slate-800 px-2 py-0.5 rounded-md text-[10px] font-bold shadow-xs border border-slate-200/60">
+                            <span className="bg-white/95 backdrop-blur-xs text-[#1C1917] px-2 py-0.5 rounded-lg text-[10px] font-semibold shadow-2xs border border-[#EDE8DF]">
                               Stok: {product.stock}
                             </span>
                           )}
                         </div>
 
                         {/* SKU Tag Bottom Left */}
-                        <div className="absolute bottom-1.5 left-1.5 bg-slate-900/75 backdrop-blur-xs text-[9px] font-mono text-white px-1.5 py-0.2 rounded-md font-semibold">
+                        <div className="absolute bottom-1.5 left-1.5 bg-[#1C1917]/75 backdrop-blur-xs text-[9px] font-mono text-white px-1.5 py-0.2 rounded-md font-semibold">
                           {product.sku}
                         </div>
 
                         {/* Cart Quantity Badge */}
                         {currentQtyInCart > 0 && (
-                          <div className="absolute top-1.5 left-1.5 bg-[#00A876] text-white font-black text-[11px] w-5 h-5 rounded-full flex items-center justify-center shadow-md ring-2 ring-white animate-in zoom-in-75">
+                          <div className="absolute top-1.5 left-1.5 bg-[#322A23] text-white font-black text-[11px] w-5 h-5 rounded-full flex items-center justify-center shadow-md ring-2 ring-white animate-in zoom-in-75">
                             {currentQtyInCart}
                           </div>
                         )}
@@ -679,11 +664,11 @@ export const POSPage: React.FC = () => {
 
                       {/* Product Name & Price */}
                       <div className="min-w-0 space-y-1.5">
-                        <h3 className="text-xs sm:text-sm font-bold truncate text-slate-900 leading-tight" title={product.name}>
+                        <h3 className="text-xs sm:text-sm font-semibold truncate text-[#1C1917] leading-tight" title={product.name}>
                           {product.name}
                         </h3>
                         <div className="flex items-center justify-between pt-0.5">
-                          <p className="text-[#00A876] font-extrabold text-xs sm:text-sm tabular-nums">
+                          <p className="text-[#1C1917] font-bold text-xs sm:text-sm tabular-nums">
                             {formatRupiah(product.price)}
                           </p>
                           <button
@@ -695,13 +680,13 @@ export const POSPage: React.FC = () => {
                                 addToCart(product);
                               }
                             }}
-                            className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs transition active:scale-90 ${
+                            className={`w-7 h-7 rounded-2xl flex items-center justify-center text-xs transition active:scale-90 ${
                               isOutOfStock || remainingStock <= 0
-                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                : 'bg-emerald-50 text-[#00A876] hover:bg-[#00A876] hover:text-white shadow-xs'
+                                ? 'bg-[#F4F1EA] text-[#A8A29E] cursor-not-allowed'
+                                : 'bg-[#F4F1EA] text-[#1C1917] hover:bg-[#322A23] hover:text-white shadow-2xs'
                             }`}
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                           </button>
                         </div>
                       </div>
@@ -827,39 +812,39 @@ export const POSPage: React.FC = () => {
           </div>
 
           {/* Cart Footer: Summary & High-Contrast Task Buttons (Bayar, Simpan, Batal) */}
-          <div className="p-4 bg-slate-50/90 border-t border-slate-200/80 space-y-3 shrink-0 rounded-b-2xl sm:rounded-b-3xl">
-            <div className="flex justify-between text-xs text-slate-500 font-semibold">
+          <div className="p-4 bg-[#FAF9F5] border-t border-[#EDE8DF] space-y-3 shrink-0 rounded-b-3xl">
+            <div className="flex justify-between text-xs text-[#78716C] font-semibold">
               <span>Subtotal ({cartTotals.totalUnits} unit)</span>
-              <span className="font-bold text-slate-800 tabular-nums">
+              <span className="font-bold text-[#1C1917] tabular-nums">
                 {formatRupiah(cartTotals.subtotal)}
               </span>
             </div>
             {settings.enableTax && (
-              <div className="flex justify-between text-xs text-slate-500 font-semibold">
+              <div className="flex justify-between text-xs text-[#78716C] font-semibold">
                 <span>Pajak (PPN {settings.taxRate}%)</span>
-                <span className="font-bold text-slate-800 tabular-nums">+{formatRupiah(estimatedTax)}</span>
+                <span className="font-bold text-[#1C1917] tabular-nums">+{formatRupiah(estimatedTax)}</span>
               </div>
             )}
-            <div className="flex justify-between items-baseline text-lg sm:text-xl font-black text-slate-900 pt-2 border-t border-slate-200">
-              <span className="text-sm font-bold text-slate-700">Total Pembayaran</span>
-              <span className="text-xl sm:text-2xl font-black text-[#00A876] tabular-nums">{formatRupiah(estimatedTotal)}</span>
+            <div className="flex justify-between items-baseline text-lg sm:text-xl font-black text-[#1C1917] pt-2 border-t border-[#EDE8DF]">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#78716C]">Total</span>
+              <span className="text-xl sm:text-2xl font-black text-[#1C1917] tabular-nums">{formatRupiah(estimatedTotal)}</span>
             </div>
 
             {/* Task-Oriented Workflow Action Buttons: Bayar, Simpan Transaksi, Batal */}
             <div className="space-y-2 pt-1">
-              {/* Primary Prominent Bayar Button */}
+              {/* Primary Prominent Bayar Button (Deep Espresso with White Text) */}
               <button
                 type="button"
                 id="open-checkout-btn"
                 disabled={cart.length === 0}
                 onClick={() => setIsCheckoutOpen(true)}
-                className={`w-full py-3.5 px-4 rounded-xl shadow-md transition-all active:scale-98 text-xs sm:text-sm font-black uppercase tracking-wider cursor-pointer flex items-center justify-center gap-2 ${
+                className={`w-full py-3.5 px-4 rounded-2xl shadow-xs transition-all active:scale-98 text-xs sm:text-sm font-bold uppercase tracking-wider cursor-pointer flex items-center justify-center gap-2 ${
                   cart.length > 0
-                    ? 'bg-[#00A876] hover:bg-[#009267] text-white shadow-[#00A876]/25 hover:shadow-lg hover:shadow-[#00A876]/30'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                    ? 'bg-[#322A23] hover:bg-[#231D18] text-white shadow-md'
+                    : 'bg-[#F4F1EA] text-[#A8A29E] cursor-not-allowed shadow-none'
                 }`}
               >
-                <CreditCard className="w-4 h-4" />
+                <CreditCard className="w-4 h-4 text-[#D9B890]" />
                 <span>Bayar Sekarang ({formatRupiah(estimatedTotal)})</span>
               </button>
 
@@ -870,11 +855,11 @@ export const POSPage: React.FC = () => {
                   id="hold-transaction-btn"
                   disabled={cart.length === 0}
                   onClick={handleHoldCurrentTransaction}
-                  className="py-2.5 px-3 rounded-xl border border-indigo-200/80 bg-indigo-50/80 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed text-indigo-900 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  className="py-2.5 px-3 rounded-2xl border border-[#E2DDD2] bg-[#F4F1EA] hover:bg-[#EAE5DB] disabled:opacity-40 disabled:cursor-not-allowed text-[#1C1917] font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                   title="Simpan sementara / Parkir pesanan"
                 >
-                  <BookmarkCheck className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Simpan Transaksi</span>
+                  <BookmarkCheck className="w-3.5 h-3.5 text-[#D9B890]" />
+                  <span>Simpan</span>
                 </button>
 
                 <button
@@ -882,7 +867,7 @@ export const POSPage: React.FC = () => {
                   id="cancel-transaction-btn"
                   disabled={cart.length === 0}
                   onClick={handleClearCart}
-                  className="py-2.5 px-3 rounded-xl border border-rose-200/80 bg-rose-50/80 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed text-rose-700 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  className="py-2.5 px-3 rounded-2xl border border-[#FECACA] bg-[#FEE2E2] hover:bg-[#FED7D7] disabled:opacity-40 disabled:cursor-not-allowed text-[#991B1B] font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                   title="Batalkan transaksi saat ini"
                 >
                   <Trash2 className="w-3.5 h-3.5 text-rose-500" />
