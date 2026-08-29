@@ -11,6 +11,33 @@
 :root {
   --font-sans-main: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono-main: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Theme Tokens Inspired by Clean & Approchable Minimalist System */
+  --bg-canvas: #F8F9FA;
+  --bg-surface: #FFFFFF;
+  --bg-surface-subtle: #F1F3F5;
+  --border-subtle: #E9ECEF;
+  --border-card: #E2E8F0;
+
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  --text-subtle: #94A3B8;
+
+  --brand-primary: #0F172A;
+  --brand-primary-hover: #1E293B;
+  --brand-mint: #00A876;
+  --brand-mint-subtle: #E6F7F1;
+  --brand-accent: #0D9488;
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.03), 0 4px 12px rgba(0, 0, 0, 0.02);
+  --shadow-card: 0 2px 8px -2px rgba(0, 0, 0, 0.04), 0 10px 24px -4px rgba(0, 0, 0, 0.03);
+  --shadow-float: 0 12px 32px -6px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
 }
 
 html, body, #root {
@@ -18,6 +45,7 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  letter-spacing: -0.01em;
 }
 
 html.dark {
@@ -25,13 +53,97 @@ html.dark {
 }
 
 body {
-  @apply bg-slate-100 text-slate-900 transition-colors duration-150;
+  background-color: #F8F9FA;
+  color: #0F172A;
   overscroll-behavior-y: none;
 }
 
 html.dark body {
   background-color: #070D18;
   color: #F1F5F9;
+}
+
+/* Design System Utilities */
+.card-clean {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 20px;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.dark .card-clean {
+  background: #0D1626;
+  border-color: #1E293B;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.card-product {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 18px;
+  box-shadow: var(--shadow-subtle);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-product:hover {
+  transform: translateY(-2px);
+  border-color: #CBD5E1;
+  box-shadow: var(--shadow-float);
+}
+
+html.dark .card-product {
+  background: #0E1726;
+  border-color: #1E293B;
+}
+
+html.dark .card-product:hover {
+  border-color: #334155;
+}
+
+.btn-ds-primary {
+  background-color: #0F172A;
+  color: #FFFFFF;
+  font-weight: 600;
+  border-radius: 14px;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.btn-ds-primary:hover {
+  background-color: #1E293B;
+  transform: translateY(-0.5px);
+}
+
+.btn-ds-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-ds-mint {
+  background-color: #00A876;
+  color: #FFFFFF;
+  font-weight: 600;
+  border-radius: 14px;
+  transition: all 0.15s ease;
+}
+
+.btn-ds-mint:hover {
+  background-color: #009366;
+  box-shadow: 0 4px 14px rgba(0, 168, 118, 0.25);
+}
+
+.badge-mint {
+  background-color: #E6F7F1;
+  color: #00875A;
+  border: 1px solid rgba(0, 168, 118, 0.2);
+  border-radius: 9999px;
+  font-weight: 700;
+}
+
+html.dark .badge-mint {
+  background-color: rgba(0, 168, 118, 0.15);
+  color: #34D399;
+  border-color: rgba(0, 168, 118, 0.3);
 }
 
 /* Ensure all interactive & text elements strictly inherit or use Plus Jakarta Sans (overriding mobile browser defaults) */
