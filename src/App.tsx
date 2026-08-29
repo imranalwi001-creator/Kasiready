@@ -609,7 +609,7 @@ const MainAppContent: React.FC = () => {
       {/* Main App Layout Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F4F7F9]">
         {/* Averion Midnight Deep Topbar (Exact match to screenshot) */}
-        <header className="h-14 bg-[#0B1320] text-white flex items-center justify-between px-4 sm:px-6 shrink-0 z-20 shadow-md">
+        <header className="h-14 bg-[#0B1320] text-white flex items-center justify-between px-4 sm:px-6 shrink-0 relative z-40 shadow-md">
           {/* Left: Mobile Menu Toggle & Uppercase Breadcrumb */}
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile Drawer Button */}
@@ -1020,10 +1020,14 @@ const MainAppContent: React.FC = () => {
   );
 };
 
+import { ToastProvider } from './context/ToastContext';
+
 export default function App() {
   return (
-    <StoreProvider>
-      <MainAppContent />
-    </StoreProvider>
+    <ToastProvider>
+      <StoreProvider>
+        <MainAppContent />
+      </StoreProvider>
+    </ToastProvider>
   );
 }

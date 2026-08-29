@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { Product, Sale, CartItem } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import { CheckoutModal } from './CheckoutModal';
@@ -77,6 +78,8 @@ export const POSPage: React.FC = () => {
     setActiveTab,
   } = useStore();
 
+  const { toast, confirm: confirmModal } = useToast();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
   const [quickTagFilter, setQuickTagFilter] = useState<'all' | 'promo' | 'low_stock' | 'ready'>('all');
@@ -146,11 +149,14 @@ export const POSPage: React.FC = () => {
     setTimeout(() => setScanFeedback(null), 3000);
   };
 
-  const handleRestoreTransaction = (tx: SavedTransaction) => {
+  const handleRestoreTransaction = async (tx: SavedTransaction) => {
     if (cart.length > 0) {
-      const confirmReplace = window.confirm(
-        'Keranjang saat ini berisi item. Ganti dengan transaksi tersimpan ini?'
-      );
+      const confirmReplace = await confirmModal({
+        title: 'Ganti Pesanan Aktif?',
+        message: 'Keranjang kasir saat ini berisi item. Apakah Anda ingin menimpa keranjang dengan transaksi tersimpan ini?',
+        confirmText: 'Ya, Muat Transaksi',
+        type: 'warning',
+      });
       if (!confirmReplace) return;
     }
 
@@ -159,28 +165,35 @@ export const POSPage: React.FC = () => {
     saveTransactionsToStorage(updated);
     setIsSavedTransactionsOpen(false);
 
-    setScanFeedback({
-      message: `Transaksi (${tx.totalUnits} unit) berhasil dimuat kembali ke keranjang`,
-      type: 'success',
-    });
-    setTimeout(() => setScanFeedback(null), 3000);
+    toast.success('Transaksi Dimuat', `Transaksi (${tx.totalUnits} unit) berhasil dimuat kembali ke keranjang.`);
   };
 
-  const handleDeleteSavedTransaction = (id: string, e: React.MouseEvent) => {
+  const handleDeleteSavedTransaction = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const updated = savedTransactions.filter((s) => s.id !== id);
-    saveTransactionsToStorage(updated);
+    const confirmed = await confirmModal({
+      title: 'Hapus Antrean Pesanan?',
+      message: 'Transaksi tersimpan ini akan dihapus permanen dari antrean.',
+      confirmText: 'Ya, Hapus',
+      type: 'danger',
+    });
+    if (confirmed) {
+      const updated = savedTransactions.filter((s) => s.id !== id);
+      saveTransactionsToStorage(updated);
+      toast.info('Antrean Dihapus', 'Transaksi tersimpan telah dihapus.');
+    }
   };
 
-  const handleClearCart = () => {
+  const handleClearCart = async () => {
     if (cart.length === 0) return;
-    if (window.confirm('Kosongkan semua pesanan di keranjang belanja?')) {
+    const confirmed = await confirmModal({
+      title: 'Kosongkan Keranjang?',
+      message: 'Apakah Anda yakin ingin menghapus seluruh pesanan yang ada di keranjang belanja?',
+      confirmText: 'Ya, Kosongkan',
+      type: 'danger',
+    });
+    if (confirmed) {
       clearCart();
-      setScanFeedback({
-        message: 'Keranjang belanja telah dikosongkan',
-        type: 'warning',
-      });
-      setTimeout(() => setScanFeedback(null), 2000);
+      toast.info('Keranjang Dikosongkan', 'Seluruh item belanja kasir telah direset.');
     }
   };
 

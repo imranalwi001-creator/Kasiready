@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Sale, StoreSettings } from '../../types';
+import { useToast } from '../../context/ToastContext';
 import { formatRupiah, formatIndonesianDate, getPaymentMethodLabel } from '../../utils/formatters';
 import {
   Printer,
@@ -31,6 +32,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   onClose,
   isNewTransaction = false,
 }) => {
+  const { toast } = useToast();
   const receiptRef = useRef<HTMLDivElement>(null);
   const [waPhone, setWaPhone] = useState('');
   const [isSendingWA, setIsSendingWA] = useState(false);
@@ -59,7 +61,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     if (!sale) return;
     const phone = waPhone.trim();
     if (!phone) {
-      alert('Masukkan nomor WhatsApp pelanggan terlebih dahulu.');
+      toast.warning('Nomor WA Belum Diisi', 'Silakan masukkan nomor WhatsApp pelanggan terlebih dahulu.');
       return;
     }
 

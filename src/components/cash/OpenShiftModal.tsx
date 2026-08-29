@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { formatRupiah } from '../../utils/formatters';
 import {
   Coins,
@@ -26,6 +27,7 @@ export const OpenShiftModal: React.FC<OpenShiftModalProps> = ({
   onSuccess,
 }) => {
   const { currentShift, openShift, activeStore, currentUser } = useStore();
+  const { toast } = useToast();
   const [openingFloat, setOpeningFloat] = useState<number>(
     currentShift ? currentShift.openingFloat : 300000
   );
@@ -39,18 +41,19 @@ export const OpenShiftModal: React.FC<OpenShiftModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (openingFloat < 0) {
-      alert('Modal awal tidak boleh negatif.');
+      toast.warning('Input Tidak Valid', 'Modal awal tidak boleh negatif.');
       return;
     }
 
     setIsSubmitting(true);
     try {
       openShift(openingFloat, notes);
+      toast.success('Shift Kasir Dibuka', `Modal awal ${formatRupiah(openingFloat)} berhasil dicatat.`);
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Gagal membuka shift kasir.');
+      toast.error('Gagal Membuka Shift', 'Terjadi kendala saat membuka shift kasir.');
     } finally {
       setIsSubmitting(false);
     }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { Product } from '../../types';
 import { X, PlusCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
@@ -15,6 +16,7 @@ export const RestockModal: React.FC<RestockModalProps> = ({
   product,
 }) => {
   const { restockProduct } = useStore();
+  const { toast } = useToast();
 
   const [additionalStock, setAdditionalStock] = useState<number>(10);
   const [note, setNote] = useState<string>('Restock dari supplier');
@@ -39,11 +41,15 @@ export const RestockModal: React.FC<RestockModalProps> = ({
     if (qty <= 0) return;
 
     restockProduct(product.id, qty, note.trim() || 'Restock barang');
+    toast.success(
+      'Restock Berhasil',
+      `+${qty} ${product.unit} ditambahkan ke "${product.name}". Total stok sekarang: ${newProjectedStock} ${product.unit}.`
+    );
     setIsSuccess(true);
     setTimeout(() => {
       setIsSuccess(false);
       onClose();
-    }, 600);
+    }, 400);
   };
 
   return (

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DigitalProduct } from '../../types';
+import { useToast } from '../../context/ToastContext';
 import { formatRupiah } from '../../utils/formatters';
 import { Tag, X, Check, ArrowRight, TrendingUp } from 'lucide-react';
 
@@ -16,6 +17,7 @@ export const DigitalMarginModal: React.FC<DigitalMarginModalProps> = ({
   onClose,
   onUpdatePrice,
 }) => {
+  const { toast, confirm: confirmModal } = useToast();
   const [sellingPrice, setSellingPrice] = useState<number>(() => product?.sellingPrice || 0);
   const [sellingPriceStr, setSellingPriceStr] = useState<string>(() => product?.sellingPrice.toString() || '0');
   const [isSaved, setIsSaved] = useState(false);
@@ -48,19 +50,24 @@ export const DigitalMarginModal: React.FC<DigitalMarginModalProps> = ({
     setSellingPriceStr(newPrice.toString());
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (sellingPrice < costPrice) {
-      if (!window.confirm('Harga jual lebih rendah dari modal (akan rugi). Tetap lanjutkan?')) {
-        return;
-      }
+      const confirmed = await confirmModal({
+        title: 'Harga Jual di Bawah Modal?',
+        message: 'Harga jual yang dimasukkan lebih rendah dari harga modal (akan rugi). Tetap lanjutkan?',
+        confirmText: 'Ya, Tetap Simpan',
+        type: 'danger',
+      });
+      if (!confirmed) return;
     }
     onUpdatePrice(product.id, sellingPrice);
+    toast.success('Harga Jual Diperbarui', `Harga jual "${product.name}" berhasil diubah.`);
     setIsSaved(true);
     setTimeout(() => {
       setIsSaved(false);
       onClose();
-    }, 800);
+    }, 400);
   };
 
   return (

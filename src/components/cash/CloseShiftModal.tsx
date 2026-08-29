@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { CashShift } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import {
@@ -48,6 +49,7 @@ export const CloseShiftModal: React.FC<CloseShiftModalProps> = ({
     activeStore,
     currentUser,
   } = useStore();
+  const { toast, confirm: confirmModal } = useToast();
 
   const activeTargetShift = shiftToClose || currentShift;
   const targetDate = activeTargetShift?.date || new Date().toISOString().split('T')[0];
@@ -111,32 +113,34 @@ export const CloseShiftModal: React.FC<CloseShiftModalProps> = ({
     setCustomCoins(rem);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (calculatedActualCash < 0) {
-      alert('Total uang fisik tidak valid.');
+      toast.warning('Input Tidak Valid', 'Total uang fisik tidak valid.');
       return;
     }
 
-    if (
-      difference !== 0 &&
-      !window.confirm(
-        `Terdapat selisih kas sebesar ${formatRupiah(Math.abs(difference))} (${
-          difference > 0 ? 'LEBIH' : 'KURANG'
-        }). Lanjutkan penutupan kasir?`
-      )
-    ) {
-      return;
+    if (difference !== 0) {
+      const confirmed = await confirmModal({
+        title: 'Konfirmasi Selisih Kas',
+        message: `Terdapat selisih kas sebesar ${formatRupiah(Math.abs(difference))} (${
+          difference > 0 ? 'LEBIH KAS' : 'KURANG KAS'
+        }). Apakah Anda yakin ingin melanjutkan penutupan kasir?`,
+        confirmText: 'Lanjutkan Penutupan',
+        type: 'warning',
+      });
+      if (!confirmed) return;
     }
 
     setIsSubmitting(true);
     try {
       const closed = closeShift(activeTargetShift.id, calculatedActualCash, notes);
+      toast.success('Shift Berhasil Ditutup', `Laporan penutupan kasir ${formatRupiah(calculatedActualCash)} telah dicatat.`);
       if (onClosedSuccess) onClosedSuccess(closed);
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Gagal melakukan penutupan kasir.');
+      toast.error('Penutupan Gagal', 'Gagal melakukan penutupan kasir.');
     } finally {
       setIsSubmitting(false);
     }

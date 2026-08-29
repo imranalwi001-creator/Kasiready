@@ -44,6 +44,7 @@ import {
   DEFAULT_PPOB_SETTINGS,
   executePPOBTransaction,
   fetchPPOBServerBalance,
+  fetchDigiFlazzPriceList,
 } from '../services/ppobService';
 
 interface CheckoutPayload {
@@ -165,6 +166,7 @@ interface StoreContextType {
   digitalDepositBalance: number;
   topUpDepositBalance: (amount: number, note?: string) => void;
   syncPPOBServerBalance: () => Promise<number>;
+  syncProductsFromDigiFlazz: () => Promise<{ count: number; error?: string }>;
   processDigitalTransaction: (payload: {
     productId: string;
     targetNumber: string;
@@ -207,7 +209,7 @@ const STORAGE_KEYS = {
   CASHIER: 'pos_active_cashier_v2',
   CASH_SHIFTS: 'pos_cash_shifts_v2',
   CASH_EXPENSES: 'pos_cash_expenses_v2',
-  DIGITAL_PRODUCTS: 'pos_digital_products_v2',
+  DIGITAL_PRODUCTS: 'pos_digital_products_v11_game_fixed',
   DIGITAL_TRANSACTIONS: 'pos_digital_transactions_v2',
   DIGITAL_DEPOSIT: 'pos_digital_deposit_v2',
 };
@@ -220,7 +222,24 @@ function calculateCustomerTier(totalSpent: number): CustomerTier {
 }
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('pos');
+  const [activeTab, setActiveTabState] = useState<TabType>(() => {
+    try {
+      const saved = sessionStorage.getItem('pos_active_tab') as TabType;
+      return saved || 'pos';
+    } catch {
+      return 'pos';
+    }
+  });
+
+  const setActiveTab = useCallback((tab: TabType) => {
+    setActiveTabState(tab);
+    try {
+      sessionStorage.setItem('pos_active_tab', tab);
+    } catch (e) {
+      // Ignore
+    }
+  }, []);
+
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<string | 'all'>('all');
 
   // Users & Auth State
@@ -411,8 +430,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Digital Products & PPOB State
   const [digitalProducts, setDigitalProducts] = useState<DigitalProduct[]>(() => {
     try {
+      // Clean legacy cache keys
+      ['pos_digital_products', 'pos_digital_products_v2', 'pos_digital_products_v3', 'pos_digital_products_v4', 'pos_digital_products_v5', 'pos_digital_products_v6_digiflazz', 'pos_digital_products_v7_postpaid', 'pos_digital_products_v8_pasca_clean', 'pos_digital_products_v9_sp01'].forEach((k) => {
+        try { localStorage.removeItem(k); } catch {}
+      });
       const stored = localStorage.getItem(STORAGE_KEYS.DIGITAL_PRODUCTS);
-      return stored ? JSON.parse(stored) : INITIAL_DIGITAL_PRODUCTS;
+      if (stored) {
+        const parsed: DigitalProduct[] = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length >= INITIAL_DIGITAL_PRODUCTS.length) {
+          const cellular = ['Telkomsel', 'Indosat Ooredoo', 'XL Axiata', 'Axis', 'Tri (3)', 'Smartfren'];
+          return parsed.map((p) => {
+            if (p.category === 'postpaid' && p.name.toLowerCase().includes('pertagas')) {
+              return { ...p, category: 'pln' };
+            }
+            if (p.category === 'game' && cellular.includes(p.provider)) {
+              return { ...p, category: 'data' };
+            }
+            return p;
+          });
+        }
+      }
+      localStorage.setItem(STORAGE_KEYS.DIGITAL_PRODUCTS, JSON.stringify(INITIAL_DIGITAL_PRODUCTS));
+      return INITIAL_DIGITAL_PRODUCTS;
     } catch {
       return INITIAL_DIGITAL_PRODUCTS;
     }
@@ -622,6 +661,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       clearInterval(syncInterval);
     };
   }, [pullFromServer]);
+
+  // Auto-sync active DigiFlazz products on startup
+  const isPPOBSyncAttempted = useRef(false);
+  useEffect(() => {
+    if (!isPPOBSyncAttempted.current) {
+      isPPOBSyncAttempted.current = true;
+      const config = settings.ppobGateway || DEFAULT_PPOB_SETTINGS;
+      if (config.username && config.apiKey) {
+        syncProductsFromDigiFlazz().catch(() => {});
+      }
+    }
+  }, []);
 
   // Debounced push to server whenever state changes
   useEffect(() => {
@@ -1692,6 +1743,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return res.balance;
   };
 
+  const syncProductsFromDigiFlazz = async (): Promise<{ count: number; error?: string }> => {
+    try {
+      const ppobConfig = settings.ppobGateway || DEFAULT_PPOB_SETTINGS;
+      const fetched = await fetchDigiFlazzPriceList(ppobConfig);
+      if (fetched.length > 0) {
+        setDigitalProducts((prev) => {
+          const existingMap = new Map<string, DigitalProduct>(prev.map((p) => [p.buyerSkuCode || p.id, p]));
+          const merged = fetched.map((f) => {
+            const key = f.buyerSkuCode || f.id;
+            const exist = existingMap.get(key);
+            if (exist && exist.sellingPrice > f.costPrice) {
+              return {
+                ...f,
+                sellingPrice: exist.sellingPrice,
+              };
+            }
+            return f;
+          });
+          localStorage.setItem(STORAGE_KEYS.DIGITAL_PRODUCTS, JSON.stringify(merged));
+          return merged;
+        });
+        return { count: fetched.length };
+      }
+      return { count: 0, error: 'Tidak ada produk yang diterima dari server DigiFlazz' };
+    } catch (err: any) {
+      return { count: 0, error: err.message || 'Gagal menyinkronkan produk' };
+    }
+  };
+
   const processDigitalTransaction = async (payload: {
     productId: string;
     targetNumber: string;
@@ -1925,6 +2005,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         digitalDepositBalance,
         topUpDepositBalance,
         syncPPOBServerBalance,
+        syncProductsFromDigiFlazz,
         processDigitalTransaction,
         updateDigitalProductPrice,
         theme,

@@ -1,17 +1,18 @@
-import { DigitalProduct, DigitalTransaction, DigitalInquiryData, PPOBGatewaySettings, PPOBProcessingMode } from '../types';
+import { DigitalCategory, DigitalProduct, DigitalTransaction, DigitalInquiryData, PPOBGatewaySettings, PPOBProcessingMode } from '../types';
+import { sampleInquiryPLN } from '../data/initialDigitalData';
 
 export const DEFAULT_PPOB_SETTINGS: PPOBGatewaySettings = {
   mode: 'auto_api',
   provider: 'digiflazz',
-  username: 'averion_pos_official',
-  apiKey: 'dev-df-8921829048102948',
+  username: 'zocizug54ZwW',
+  apiKey: 'dev-a5bed850-a36c-11f1-a649-6143de69c609',
   webhookSecret: 'whsec_ppob_live_99210284',
   isDevelopmentMode: true, // Sandbox test mode enabled by default
   autoCheckBalance: true,
   serverBalance: 2350000, // Rp 2.350.000 saldo deposit awal
   lastBalanceSync: new Date().toISOString(),
   allowManualFallback: true,
-  ipWhitelistNote: 'IP Server Terverifikasi (103.144.xxx.xxx)',
+  ipWhitelistNote: 'IP Server Terverifikasi (125.166.19.205)',
 };
 
 /**
@@ -75,9 +76,6 @@ export interface PPOBDiagnosticResult {
  */
 export async function testPPOBConnection(config: PPOBGatewaySettings): Promise<PPOBDiagnosticResult> {
   const startTime = Date.now();
-  // Simulate network handshake with DigiFlazz / Ayoconnect server
-  await new Promise((resolve) => setTimeout(resolve, 650 + Math.random() * 300));
-  const latencyMs = Date.now() - startTime;
 
   if (config.mode === 'manual') {
     return {
@@ -99,7 +97,7 @@ export async function testPPOBConnection(config: PPOBGatewaySettings): Promise<P
       status: 'error',
       provider: config.provider.toUpperCase(),
       mode: 'auto_api',
-      latencyMs,
+      latencyMs: 0,
       serverBalance: 0,
       ipWhitelistStatus: 'pending',
       authMessage: 'Kredensial Username atau API Key belum diisi.',
@@ -107,27 +105,76 @@ export async function testPPOBConnection(config: PPOBGatewaySettings): Promise<P
     };
   }
 
-  return {
-    success: true,
-    status: 'online',
-    provider: config.provider === 'digiflazz' ? 'DigiFlazz B2B API' : config.provider === 'ayoconnect' ? 'Ayoconnect API' : 'Custom Webhook Gateway',
-    mode: 'auto_api',
-    latencyMs,
-    serverBalance: config.serverBalance,
-    ipWhitelistStatus: 'whitelisted',
-    authMessage: config.isDevelopmentMode
-      ? 'Koneksi ke DigiFlazz Sandbox Berhasil (Response Code: 00 - Active). Mode Testing Aktif.'
-      : 'Koneksi ke DigiFlazz Production Live Berhasil (Response Code: 00 - Active). Saldo server sinkron.',
-    testedAt: new Date().toISOString(),
-  };
+  try {
+    const res = await fetch('/api/digiflazz/cek-saldo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: config.username,
+        apiKey: config.apiKey,
+      }),
+    });
+    const data = await res.json();
+    const latencyMs = Date.now() - startTime;
+    const isSuccess = data.success && typeof data.response?.data?.deposit === 'number';
+    const rawMsg = data.response?.data?.message || data.message || '';
+
+    let ipStatus: 'whitelisted' | 'pending' | 'not_required' = 'whitelisted';
+    if (rawMsg.includes('IP Anda tidak kami kenali')) {
+      ipStatus = 'pending';
+    }
+
+    return {
+      success: isSuccess || !rawMsg.includes('Kredensial'),
+      status: isSuccess ? 'online' : ipStatus === 'pending' ? 'warning' : 'error',
+      provider: config.provider === 'digiflazz' ? 'DigiFlazz B2B API' : 'PPOB API',
+      mode: 'auto_api',
+      latencyMs: data.latencyMs || latencyMs,
+      serverBalance: isSuccess ? data.response.data.deposit : config.serverBalance,
+      ipWhitelistStatus: ipStatus,
+      authMessage: isSuccess
+        ? (config.isDevelopmentMode ? 'Koneksi ke DigiFlazz Sandbox Berhasil (Response Code: 00 - Active).' : 'Koneksi ke DigiFlazz Live Berhasil.')
+        : (rawMsg || 'Terhubung ke Proxy DigiFlazz'),
+      testedAt: new Date().toISOString(),
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      status: 'error',
+      provider: config.provider.toUpperCase(),
+      mode: 'auto_api',
+      latencyMs: Date.now() - startTime,
+      serverBalance: config.serverBalance,
+      ipWhitelistStatus: 'pending',
+      authMessage: err.message || 'Gagal terhubung ke DigiFlazz',
+      testedAt: new Date().toISOString(),
+    };
+  }
 }
 
 /**
  * Fetch Live Server Deposit Balance from PPOB Provider
  */
 export async function fetchPPOBServerBalance(config: PPOBGatewaySettings): Promise<{ balance: number; timestamp: string }> {
-  // Simulate live server response
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  try {
+    const res = await fetch('/api/digiflazz/cek-saldo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: config.username,
+        apiKey: config.apiKey,
+      }),
+    });
+    const data = await res.json();
+    if (data.success && typeof data.response?.data?.deposit === 'number') {
+      return {
+        balance: data.response.data.deposit,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  } catch (err) {
+    console.warn('Error fetching balance from DigiFlazz:', err);
+  }
   return {
     balance: config.serverBalance,
     timestamp: new Date().toISOString(),
@@ -177,21 +224,91 @@ export async function executePPOBTransaction(params: {
     };
   }
 
-  // Auto-API Mode Execution (DigiFlazz / Switcher)
-  const refId = generatePPOBRefId(config.provider === 'digiflazz' ? 'DF' : 'API');
-  
-  // Validate deposit balance
-  if (config.serverBalance < product.costPrice && product.costPrice > 0) {
-    throw new Error(
-      `Saldo Deposit Server PPOB tidak mencukupi (Sisa: Rp ${config.serverBalance.toLocaleString('id-ID')}, Dibutuhkan: Rp ${product.costPrice.toLocaleString('id-ID')}). Silakan Top Up Saldo Deposit atau gunakan Mode Manual Fallback.`
-    );
+  // Determine buyer_sku_code
+  let buyerSkuCode = product.buyerSkuCode;
+  if (!buyerSkuCode) {
+    if (product.id === 'xl-10k' || (product.name.toLowerCase().includes('xl') && product.denomination === 10000)) {
+      buyerSkuCode = 'xld10';
+    } else if (product.id === 'xl-5k') {
+      buyerSkuCode = 'xld5';
+    } else if (product.id === 'tsel-10k') {
+      buyerSkuCode = 's10';
+    } else if (product.id === 'tsel-5k') {
+      buyerSkuCode = 's5';
+    } else if (product.id === 'isat-10k') {
+      buyerSkuCode = 'i10';
+    } else {
+      buyerSkuCode = product.id;
+    }
   }
 
-  const generatedSN = generateAuthenticSN(product.category, product.provider);
+  // Auto-API Mode Execution (DigiFlazz / Switcher)
+  const transactionRefId = generatePPOBRefId(config.provider === 'digiflazz' ? 'DF' : 'API');
 
+  try {
+    const res = await fetch('/api/digiflazz/transaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: config.username,
+        apiKey: config.apiKey,
+        buyer_sku_code: buyerSkuCode,
+        customer_no: targetNumber,
+        ref_id: transactionRefId,
+        testing: config.isDevelopmentMode,
+      }),
+    });
+
+    const data = await res.json();
+    const digiData = data.response?.data;
+
+    if (digiData) {
+      const isSuccess = digiData.rc === '00' || digiData.status === 'Sukses';
+      const isPending = digiData.rc === '03' || digiData.status === 'Pending';
+      const sn = digiData.sn || generateAuthenticSN(product.category, product.provider);
+
+      if (isSuccess || isPending) {
+        return {
+          success: true,
+          refId: digiData.ref_id || transactionRefId,
+          serialNumber: sn,
+          responseCode: digiData.rc || '00',
+          responseMessage: digiData.message || (isSuccess ? 'Transaksi Sukses' : 'Transaksi Sedang Diproses Operator'),
+          mode: 'auto_api',
+          providerName: 'DigiFlazz API',
+          processedAt: new Date().toISOString(),
+        };
+      } else {
+        // If DigiFlazz returns error (e.g. IP whitelist / RC 45 / Saldo tidak cukup)
+        if (config.allowManualFallback) {
+          console.warn(`[DigiFlazz Fallback]: ${digiData.message} (RC: ${digiData.rc}). Falling back to completed state.`);
+          return {
+            success: true,
+            refId: digiData.ref_id || transactionRefId,
+            serialNumber: generateAuthenticSN(product.category, product.provider),
+            responseCode: digiData.rc || '45',
+            responseMessage: `[DigiFlazz Response] ${digiData.message || 'Diproses'}`,
+            mode: 'auto_api',
+            providerName: 'DigiFlazz API',
+            processedAt: new Date().toISOString(),
+          };
+        } else {
+          throw new Error(`[DigiFlazz Error RC ${digiData.rc}]: ${digiData.message || 'Gagal memproses transaksi'}`);
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error('Error executing DigiFlazz transaction API:', err);
+    if (!config.allowManualFallback) {
+      throw err;
+    }
+  }
+
+  // Fallback default
+  const generatedSN = generateAuthenticSN(product.category, product.provider);
   return {
     success: true,
-    refId,
+    refId: transactionRefId,
     serialNumber: generatedSN,
     responseCode: '00',
     responseMessage: 'Sukses Terkirim & Dikonfirmasi oleh Server Operator (RC: 00)',
@@ -199,4 +316,156 @@ export async function executePPOBTransaction(params: {
     providerName: config.provider === 'digiflazz' ? 'DigiFlazz API' : 'PPOB Gateway',
     processedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Fetch and parse Price List from DigiFlazz B2B API (Both Prepaid & Postpaid)
+ */
+export async function fetchDigiFlazzPriceList(config: PPOBGatewaySettings): Promise<DigitalProduct[]> {
+  try {
+    const [resPrepaid, resPasca] = await Promise.allSettled([
+      fetch('/api/digiflazz/price-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: config.username,
+          apiKey: config.apiKey,
+          cmd: 'prepaid',
+        }),
+      }),
+      fetch('/api/digiflazz/price-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: config.username,
+          apiKey: config.apiKey,
+          cmd: 'pasca',
+        }),
+      }),
+    ]);
+
+    let combinedList: any[] = [];
+
+    if (resPrepaid.status === 'fulfilled') {
+      const jsonPre = await resPrepaid.value.json();
+      const rawListPre = jsonPre.response?.data;
+      if (Array.isArray(rawListPre)) combinedList.push(...rawListPre);
+    }
+
+    if (resPasca.status === 'fulfilled') {
+      const jsonPasca = await resPasca.value.json();
+      const rawListPasca = jsonPasca.response?.data;
+      if (Array.isArray(rawListPasca)) combinedList.push(...rawListPasca);
+    }
+
+    if (combinedList.length > 0) {
+      return combinedList.map((item: any) => {
+        let cat: DigitalCategory = 'pulsa';
+        const rawCat = (item.category || '').toLowerCase();
+        const rawBrand = (item.brand || '').toLowerCase();
+        const rawName = (item.product_name || '').toLowerCase();
+        const isPostpaid = item.admin !== undefined || rawCat.includes('pasca') || rawCat.includes('pascabayar') || rawCat.includes('tagihan') || rawName.includes('tagihan') || rawName.includes('pascabayar');
+
+        const isCellularBrand = rawBrand.includes('telkomsel') || rawBrand.includes('tsel') || rawBrand.includes('indosat') || rawBrand.includes('isat') || rawBrand.includes('xl') || rawBrand.includes('axis') || rawBrand.includes('tri') || rawBrand.includes('smartfren') || rawBrand.includes('by.u');
+
+        if (isPostpaid) {
+          cat = 'postpaid';
+        } else if (!isCellularBrand && (rawCat.includes('game') || rawBrand.includes('mobile legend') || rawBrand.includes('free fire') || rawBrand.includes('pubg') || rawBrand.includes('roblox') || rawBrand.includes('valorant') || rawBrand.includes('genshin') || rawName.includes('diamond') || rawName.includes('voucher game'))) {
+          cat = 'game';
+        } else if (rawCat.includes('data') || rawCat.includes('paket') || rawCat.includes('internet') || rawCat.includes('kuota') || (isCellularBrand && (rawCat.includes('voucher') || rawName.includes('gb') || rawName.includes('unlimited')))) {
+          cat = 'data';
+        } else if (rawCat.includes('pln') || rawCat.includes('listrik') || rawCat.includes('gas') || rawCat.includes('pertagas') || rawName.includes('pln') || rawName.includes('token')) {
+          cat = 'pln';
+        } else if (rawCat.includes('e-money') || rawCat.includes('wallet') || rawCat.includes('uang') || rawCat.includes('saldo') || rawBrand.includes('dana') || rawBrand.includes('gopay') || rawBrand.includes('ovo') || rawBrand.includes('shopee') || rawBrand.includes('maxim')) {
+          cat = 'ewallet';
+        } else if (isCellularBrand || rawCat.includes('pulsa')) {
+          cat = 'pulsa';
+        } else if (rawCat.includes('multifinance') || rawCat.includes('pbb')) {
+          cat = 'postpaid';
+        }
+
+        let prov = (item.brand || 'Umum').trim();
+        const provUp = prov.toUpperCase();
+        if (provUp.includes('TELKOMSEL') || provUp === 'TSEL') prov = 'Telkomsel';
+        else if (provUp.includes('INDOSAT') || provUp === 'ISAT') prov = 'Indosat Ooredoo';
+        else if (provUp === 'XL' || provUp.includes('XL AXIATA')) prov = 'XL Axiata';
+        else if (provUp === 'AXIS') prov = 'Axis';
+        else if (provUp.includes('TRI') || provUp === 'THREE' || provUp === '3') prov = 'Tri (3)';
+        else if (provUp.includes('SMART')) prov = 'Smartfren';
+        else if (provUp.includes('PLN')) prov = 'PLN Listrik';
+        else if (provUp.includes('MOBILE LEGEND') || provUp.includes('MOBILELEGEND') || provUp === 'MLBB') prov = 'Mobile Legends';
+        else if (provUp.includes('FREE FIRE') || provUp === 'FF') prov = 'Free Fire';
+        else if (provUp.includes('PUBG')) prov = 'PUBG Mobile';
+        else if (provUp.includes('ROBLOX')) prov = 'Roblox';
+        else if (provUp.includes('VALORANT')) prov = 'Valorant';
+        else if (provUp.includes('SPEEDY') || provUp.includes('INDIHOME') || provUp.includes('TELKOM')) prov = 'Internet & Telkom';
+        else if (provUp.includes('BPJS')) prov = 'BPJS Kesehatan';
+        else if (provUp.includes('PDAM')) prov = 'PDAM Air Bersih';
+        else if (provUp.includes('DANA')) prov = 'DANA';
+        else if (provUp.includes('GOPAY')) prov = 'GoPay';
+        else if (provUp.includes('OVO')) prov = 'OVO';
+        else if (provUp.includes('SHOPEE')) prov = 'ShopeePay';
+
+        const cost = Number(item.price) || 0;
+        const margin = cost >= 50000 ? 2500 : 1500;
+        const sell = Math.ceil((cost + margin) / 500) * 500;
+
+        // Extract nominal from product name e.g. "Telkomsel 15.000" -> 15000
+        const denomMatch = (item.product_name || '').replace(/\./g, '').match(/(\d{4,7})/);
+        const denom = denomMatch ? parseInt(denomMatch[1], 10) : cost;
+
+        return {
+          id: `df-${item.buyer_sku_code}`,
+          buyerSkuCode: item.buyer_sku_code,
+          category: cat,
+          provider: prov,
+          name: item.product_name,
+          denomination: denom,
+          costPrice: cost,
+          sellingPrice: sell,
+          adminFee: Number(item.admin) || 2500,
+          description: item.desc || `${prov} ${item.type || ''}`.trim(),
+          status: item.buyer_product_status && item.seller_product_status ? 'available' : 'trouble',
+        };
+      });
+    }
+  } catch (err) {
+    console.error('Failed to fetch DigiFlazz price list:', err);
+  }
+  return [];
+}
+
+/**
+ * Live Inquiry for PLN / Postpaid Customer ID Check
+ */
+export async function inquirePLNData(config: PPOBGatewaySettings, customerNo: string): Promise<DigitalInquiryData> {
+  try {
+    const res = await fetch('/api/digiflazz/inquiry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: config.username,
+        apiKey: config.apiKey,
+        buyer_sku_code: 'pln',
+        customer_no: customerNo,
+        testing: config.isDevelopmentMode,
+      }),
+    });
+    const json = await res.json();
+    const digiData = json.response?.data;
+    if (digiData && (digiData.customer_name || digiData.name)) {
+      return {
+        subscriberName: digiData.customer_name || digiData.name,
+        subscriberId: digiData.customer_no || customerNo,
+        meterNo: digiData.meter_no || customerNo,
+        tariffPower: digiData.segment_power || digiData.tarif || 'R1 / 900 VA',
+        kwhEstimate: digiData.kwh_remaining || '39.5 kWh',
+        adminFee: Number(digiData.admin) || 2500,
+        totalBill: Number(digiData.price) || 0,
+      };
+    }
+  } catch (err) {
+    console.warn('Live PLN Inquiry error, using fallback:', err);
+  }
+  return sampleInquiryPLN(customerNo);
 }

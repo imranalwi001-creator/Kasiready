@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import {
   formatRupiah,
   formatNumber,
@@ -47,8 +48,13 @@ import {
   CartesianGrid,
 } from 'recharts';
 
-export const ReportsDashboard: React.FC = () => {
+interface ReportsDashboardProps {
+  onSelectReceipt?: (id: string) => void;
+}
+
+export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({ onSelectReceipt }) => {
   const { sales, products, categories, stores, settings, currentUser } = useStore();
+  const { toast } = useToast();
   const [timeRange, setTimeRange] = useState<'7days' | '30days' | 'all'>('7days');
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [isExportingPDF, setIsExportingPDF] = useState(false);
@@ -277,9 +283,10 @@ export const ReportsDashboard: React.FC = () => {
         categoryData,
         topProducts,
       });
+      toast.success('Laporan PDF Siap', 'File PDF laporan keuangan berhasil diunduh.');
     } catch (err) {
       console.error('Export PDF error:', err);
-      alert('Gagal mengekspor laporan PDF.');
+      toast.error('Ekspor PDF Gagal', 'Terjadi kesalahan saat membuat file PDF.');
     } finally {
       setIsExportingPDF(false);
     }
@@ -308,9 +315,10 @@ export const ReportsDashboard: React.FC = () => {
         categoryData,
         topProducts,
       });
+      toast.success('Laporan Excel Siap', 'File Excel laporan keuangan berhasil diunduh.');
     } catch (err) {
       console.error('Export Excel error:', err);
-      alert('Gagal mengekspor laporan Excel.');
+      toast.error('Ekspor Excel Gagal', 'Terjadi kesalahan saat membuat file Excel.');
     } finally {
       setIsExportingExcel(false);
     }

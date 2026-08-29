@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { Category } from '../../types';
 import { X, Plus, Edit2, Trash2, Layers, Check, Sparkles } from 'lucide-react';
 
@@ -10,6 +11,7 @@ interface CategoryModalProps {
 
 export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose }) => {
   const { categories, products, addCategory, updateCategory, deleteCategory } = useStore();
+  const { toast, confirm: confirmModal } = useToast();
 
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [name, setName] = useState('');
@@ -42,6 +44,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose })
         description: description.trim(),
         color,
       });
+      toast.success('Kategori Diperbarui', `Kategori "${name.trim()}" berhasil disimpan.`);
       handleCancelEdit();
     } else {
       addCategory({
@@ -49,19 +52,30 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose })
         description: description.trim(),
         color,
       });
+      toast.success('Kategori Dibuat', `Kategori "${name.trim()}" siap digunakan.`);
       setName('');
       setDescription('');
     }
   };
 
-  const handleDelete = (catId: string) => {
+  const handleDelete = async (catId: string) => {
     const attachedCount = products.filter((p) => p.categoryId === catId).length;
     if (attachedCount > 0) {
-      alert(`Tidak dapat menghapus kategori ini karena masih digunakan oleh ${attachedCount} produk.`);
+      toast.warning(
+        'Kategori Sedang Digunakan',
+        `Tidak dapat menghapus kategori ini karena masih terhubung dengan ${attachedCount} produk.`
+      );
       return;
     }
-    if (confirm('Hapus kategori ini?')) {
+    const confirmed = await confirmModal({
+      title: 'Hapus Kategori?',
+      message: 'Kategori yang dihapus tidak dapat dipulihkan kembali.',
+      confirmText: 'Ya, Hapus Kategori',
+      type: 'danger',
+    });
+    if (confirmed) {
       deleteCategory(catId);
+      toast.success('Kategori Dihapus', 'Kategori produk berhasil dihapus.');
     }
   };
 

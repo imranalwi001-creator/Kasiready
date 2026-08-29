@@ -14,6 +14,8 @@ import {
   sampleInquiryPLN,
 } from '../../data/initialDigitalData';
 import { formatRupiah } from '../../utils/formatters';
+import { inquirePLNData, DEFAULT_PPOB_SETTINGS } from '../../services/ppobService';
+import { useToast } from '../../context/ToastContext';
 import { DigitalCheckoutModal } from './DigitalCheckoutModal';
 import { DigitalReceiptModal } from './DigitalReceiptModal';
 import { DepositTopupModal } from './DepositTopupModal';
@@ -45,6 +47,8 @@ import {
   User,
   History,
   Store as StoreIcon,
+  RefreshCw,
+  Download,
 } from 'lucide-react';
 
 const CATEGORY_ICONS: Record<DigitalCategory, React.ComponentType<{ className?: string }>> = {
@@ -67,7 +71,10 @@ export const DigitalProductsPage: React.FC = () => {
     settings,
     currentUser,
     customers,
+    syncProductsFromDigiFlazz,
   } = useStore();
+
+  const { toast } = useToast();
 
   // Active Main Tab: 'pos' (Quick Sale), 'history' (Riwayat), 'catalog' (Katalog & Margin)
   const [activeSubTab, setActiveSubTab] = useState<'pos' | 'history' | 'catalog'>('pos');
@@ -98,6 +105,28 @@ export const DigitalProductsPage: React.FC = () => {
   const [historyCategoryFilter, setHistoryCategoryFilter] = useState<string>('all');
   const [catalogSearch, setCatalogSearch] = useState<string>('');
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState<string>('all');
+  const [isSyncingProducts, setIsSyncingProducts] = useState<boolean>(false);
+  const [syncNotification, setSyncNotification] = useState<string | null>(null);
+
+  const handleSyncDigiFlazzProducts = async () => {
+    setIsSyncingProducts(true);
+    setSyncNotification(null);
+    const loadingToast = toast.loading('Sinkronisasi Produk', 'Mengunduh daftar produk aktif & harga modal dari DigiFlazz...');
+    try {
+      const res = await syncProductsFromDigiFlazz();
+      loadingToast.dismiss();
+      if (res.count > 0) {
+        toast.success('Sinkronisasi Berhasil', `Berhasil menyinkronkan ${res.count} produk aktif dari server DigiFlazz!`);
+      } else {
+        toast.error('Sinkronisasi Gagal', res.error || 'Gagal menyinkronkan produk dari DigiFlazz.');
+      }
+    } catch (err: any) {
+      loadingToast.dismiss();
+      toast.error('Terjadi Kesalahan', err.message || 'Gagal menghubungi server DigiFlazz');
+    } finally {
+      setIsSyncingProducts(false);
+    }
+  };
 
   // Auto detect provider from target number when typing for pulsa/data/postpaid
   useEffect(() => {
@@ -118,13 +147,15 @@ export const DigitalProductsPage: React.FC = () => {
     setInquiryError('');
 
     if (cat === 'pln') {
-      setSelectedProvider('PLN');
+      setSelectedProvider('PLN Listrik');
     } else if (cat === 'ewallet') {
       if (!['DANA', 'GoPay', 'OVO', 'ShopeePay', 'LinkAja', 'Maxim'].includes(selectedProvider)) {
         setSelectedProvider('DANA');
       }
     } else if (cat === 'game') {
       setSelectedProvider('Mobile Legends');
+    } else if (cat === 'postpaid') {
+      setSelectedProvider('');
     } else {
       if (targetNumber.length >= 4) {
         const detected = detectProviderFromPhone(targetNumber);
@@ -136,6 +167,7 @@ export const DigitalProductsPage: React.FC = () => {
   // Perform Inquiry for PLN / Postpaid
   const handlePerformInquiry = async () => {
     if (!targetNumber || targetNumber.length < 9) {
+      toast.warning('Nomor Meter Belum Lengkap', 'Nomor ID Pelanggan / No. Meter PLN minimal 9-12 digit');
       setInquiryError('Nomor ID Pelanggan / No. Meter minimal 9-12 digit');
       return;
     }
@@ -144,12 +176,14 @@ export const DigitalProductsPage: React.FC = () => {
     setInquiryData(null);
 
     try {
-      await new Promise((r) => setTimeout(r, 600));
-      const res = sampleInquiryPLN(targetNumber);
+      const config = settings.ppobGateway || DEFAULT_PPOB_SETTINGS;
+      const res = await inquirePLNData(config, targetNumber);
       setInquiryData(res);
       setCustomerName(res.subscriberName);
+      toast.success('Data PLN Ditemukan', `${res.subscriberName} • Daya: ${res.tariffPower}`);
     } catch {
       setInquiryError('Data ID Pelanggan tidak ditemukan.');
+      toast.error('Inquiry Gagal', 'Data ID Pelanggan / No. Meter tidak ditemukan.');
     } finally {
       setIsInquiring(false);
     }
@@ -158,8 +192,22 @@ export const DigitalProductsPage: React.FC = () => {
   // Filter products for the POS screen
   const availableProducts = useMemo(() => {
     return digitalProducts.filter((p) => {
+      // Exclude prepaid token/vouchers from postpaid list
+      if (selectedCategory === 'postpaid') {
+        const isPrepaidVoucher = p.denomination > 0 && p.costPrice > 0 && !p.name.toLowerCase().includes('tagihan') && !p.name.toLowerCase().includes('pascabayar') && !p.name.toLowerCase().includes('speedy') && !p.name.toLowerCase().includes('indihome') && !p.name.toLowerCase().includes('bpjs') && !p.name.toLowerCase().includes('pdam');
+        if (isPrepaidVoucher || p.name.toLowerCase().includes('pertagas')) return false;
+      }
       if (p.category !== selectedCategory) return false;
-      if (selectedProvider && p.provider !== selectedProvider) return false;
+      if (selectedCategory === 'postpaid' && !selectedProvider) {
+        return true;
+      }
+      if (selectedProvider) {
+        const provA = (p.provider || '').toLowerCase().trim();
+        const provB = (selectedProvider || '').toLowerCase().trim();
+        if (provA !== provB && !provA.includes(provB) && !provB.includes(provA)) {
+          return false;
+        }
+      }
       return true;
     });
   }, [digitalProducts, selectedCategory, selectedProvider]);
@@ -167,8 +215,23 @@ export const DigitalProductsPage: React.FC = () => {
   // List of unique providers for current category
   const categoryProviders = useMemo(() => {
     const set = new Set<string>();
+    const cellularProviders = ['Telkomsel', 'Indosat Ooredoo', 'XL Axiata', 'Axis', 'Tri (3)', 'Smartfren'];
+    const ewalletProviders = ['DANA', 'GoPay', 'OVO', 'ShopeePay', 'LinkAja', 'Maxim'];
+
     digitalProducts
-      .filter((p) => p.category === selectedCategory)
+      .filter((p) => {
+        if (p.category !== selectedCategory) return false;
+        if (selectedCategory === 'game') {
+          if (cellularProviders.includes(p.provider) || ewalletProviders.includes(p.provider)) return false;
+        }
+        if (selectedCategory === 'ewallet') {
+          if (cellularProviders.includes(p.provider)) return false;
+        }
+        if (selectedCategory === 'pulsa' || selectedCategory === 'data') {
+          if (ewalletProviders.includes(p.provider)) return false;
+        }
+        return true;
+      })
       .forEach((p) => set.add(p.provider));
     return Array.from(set);
   }, [digitalProducts, selectedCategory]);
@@ -188,7 +251,10 @@ export const DigitalProductsPage: React.FC = () => {
   // Handle open checkout
   const handleSelectProduct = (product: DigitalProduct) => {
     if (!targetNumber || targetNumber.length < 4) {
-      alert('Silakan masukkan nomor tujuan / ID Pelanggan terlebih dahulu.');
+      toast.warning(
+        'Nomor Tujuan Diperlukan',
+        'Silakan masukkan nomor handphone / ID Pelanggan terlebih dahulu sebelum memilih produk.'
+      );
       return;
     }
     setSelectedProduct(product);
@@ -239,7 +305,7 @@ export const DigitalProductsPage: React.FC = () => {
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-slate-100 dark:bg-slate-950 pb-16">
       {/* Top Header Bar */}
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-4 sticky top-0 z-20 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-4 sticky top-0 z-10 shadow-xs">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Title & Badge */}
           <div className="flex items-center gap-3">
@@ -426,6 +492,8 @@ export const DigitalProductsPage: React.FC = () => {
                       ? 'No. HP Akun E-Wallet (DANA/GoPay/OVO)'
                       : selectedCategory === 'game'
                       ? 'User ID & Server ID Game'
+                      : selectedCategory === 'postpaid'
+                      ? 'ID Pelanggan / No. Kontrak / No. Rekening'
                       : 'Nomor HP Pelanggan (08xx)'}
                   </label>
                   <div className="relative">
@@ -434,6 +502,8 @@ export const DigitalProductsPage: React.FC = () => {
                         <Zap className="w-5 h-5 text-amber-500" />
                       ) : selectedCategory === 'ewallet' ? (
                         <Wallet className="w-5 h-5 text-blue-500" />
+                      ) : selectedCategory === 'postpaid' ? (
+                        <Receipt className="w-5 h-5 text-indigo-500" />
                       ) : (
                         <Smartphone className="w-5 h-5 text-[#00A876]" />
                       )}
@@ -445,6 +515,8 @@ export const DigitalProductsPage: React.FC = () => {
                       placeholder={
                         selectedCategory === 'pln'
                           ? 'Contoh: 14283920192'
+                          : selectedCategory === 'postpaid'
+                          ? 'Contoh: 530000000001 (No. Rekening / Tagihan)'
                           : 'Contoh: 081234567890'
                       }
                       className="w-full pl-11 pr-24 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-base font-bold tracking-wide focus:outline-hidden focus:ring-2 focus:ring-[#00A876]"
@@ -492,21 +564,41 @@ export const DigitalProductsPage: React.FC = () => {
                       className="w-full py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs font-black shadow-md shadow-amber-500/20 transition flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Search className="w-4 h-4" />
-                      <span>{isInquiring ? 'Mengecek ID...' : 'Cek Nama & Daya PLN'}</span>
+                      <span>
+                        {isInquiring
+                          ? 'Mengecek...'
+                          : selectedCategory === 'pln'
+                          ? 'Cek Nama & Daya PLN'
+                          : 'Cek Tagihan Pelanggan'}
+                      </span>
                     </button>
                   </div>
                 ) : (
                   /* Provider Switcher Dropdown / Pills */
                   <div className="md:col-span-3 space-y-1.5">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-                      Pilih Operator Manual
+                      {selectedCategory === 'game'
+                        ? 'Pilih Game / Publisher'
+                        : selectedCategory === 'ewallet'
+                        ? 'Pilih Dompet Digital'
+                        : selectedCategory === 'postpaid'
+                        ? 'Pilih Layanan Tagihan'
+                        : 'Pilih Operator Manual'}
                     </label>
                     <select
                       value={selectedProvider}
                       onChange={(e) => setSelectedProvider(e.target.value)}
                       className="w-full px-3 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs font-bold focus:outline-hidden focus:ring-2 focus:ring-[#00A876]"
                     >
-                      <option value="">Semua Operator</option>
+                      <option value="">
+                        {selectedCategory === 'game'
+                          ? 'Semua Game'
+                          : selectedCategory === 'ewallet'
+                          ? 'Semua E-Wallet'
+                          : selectedCategory === 'postpaid'
+                          ? 'Semua Layanan'
+                          : 'Semua Operator'}
+                      </option>
                       {categoryProviders.map((prov) => (
                         <option key={prov} value={prov}>
                           {prov}
@@ -794,16 +886,44 @@ export const DigitalProductsPage: React.FC = () => {
         {/* VIEW 3: KATALOG & ATUR MARGIN */}
         {activeSubTab === 'catalog' && (
           <div className="space-y-5">
+            {syncNotification && (
+              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-bold flex items-center justify-between animate-fade-in shadow-xs">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>{syncNotification}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSyncNotification(null)}
+                  className="text-slate-400 hover:text-slate-600 text-xs font-bold px-2 py-0.5 rounded-lg"
+                >
+                  Tutup
+                </button>
+              </div>
+            )}
+
             <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
-              <div className="relative w-full md:w-80">
-                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={catalogSearch}
-                  onChange={(e) => setCatalogSearch(e.target.value)}
-                  placeholder="Cari produk digital atau kode..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold focus:outline-hidden focus:ring-2 focus:ring-[#00A876]"
-                />
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                <div className="relative w-full sm:w-72">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={catalogSearch}
+                    onChange={(e) => setCatalogSearch(e.target.value)}
+                    placeholder="Cari produk digital atau kode SKU..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold focus:outline-hidden focus:ring-2 focus:ring-[#00A876]"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSyncDigiFlazzProducts}
+                  disabled={isSyncingProducts}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingProducts ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingProducts ? 'Menarik Produk...' : 'Tarik Produk dari DigiFlazz'}</span>
+                </button>
               </div>
 
               {/* Category Filter */}
@@ -811,28 +931,31 @@ export const DigitalProductsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setCatalogCategoryFilter('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
                     catalogCategoryFilter === 'all'
                       ? 'bg-[#00A876] text-white'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                   }`}
                 >
-                  Semua
+                  Semua ({digitalProducts.length})
                 </button>
-                {DIGITAL_CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setCatalogCategoryFilter(cat.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                      catalogCategoryFilter === cat.id
-                        ? 'bg-[#00A876] text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                    }`}
-                  >
-                    {cat.label}
-                  </button>
-                ))}
+                {DIGITAL_CATEGORIES.map((cat) => {
+                  const count = digitalProducts.filter((p) => p.category === cat.id).length;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setCatalogCategoryFilter(cat.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                        catalogCategoryFilter === cat.id
+                          ? 'bg-[#00A876] text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      {cat.label} ({count})
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

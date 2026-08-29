@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { formatRupiah } from '../../utils/formatters';
 import {
   Search,
@@ -26,11 +27,13 @@ import {
 interface GlobalSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
 export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   isOpen,
   onClose,
+  onNavigateTab,
 }) => {
   const {
     products,
@@ -41,6 +44,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     addToCart,
     cart,
   } = useStore();
+  const { toast } = useToast();
 
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -65,12 +69,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     }
   }, [isOpen]);
 
-  // Voice Search Handler
   const toggleVoiceSearch = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Browser Anda tidak mendukung Web Speech API untuk pencarian suara.');
+      toast.warning('Fitur Tidak Didukung', 'Browser Anda tidak mendukung Web Speech API untuk pencarian suara.');
       return;
     }
 
@@ -186,10 +189,11 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
   const handleQuickAddToCart = (product: any) => {
     if (product.stock <= 0) {
-      alert('Stok produk habis!');
+      toast.warning('Stok Habis', `Stok produk "${product.name}" sedang habis.`);
       return;
     }
     addToCart(product);
+    toast.success('Ditambahkan ke Keranjang', `1x ${product.name}`);
     setAddedProductId(product.id);
     setTimeout(() => setAddedProductId(null), 1200);
   };

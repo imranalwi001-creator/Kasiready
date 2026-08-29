@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { Store } from '../../types';
 import {
   X,
@@ -30,6 +31,7 @@ export const StoreModal: React.FC<StoreModalProps> = ({ isOpen, onClose }) => {
     products,
     sales,
   } = useStore();
+  const { toast, confirm: confirmModal } = useToast();
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
@@ -93,17 +95,24 @@ export const StoreModal: React.FC<StoreModalProps> = ({ isOpen, onClose }) => {
     setEditingStoreId(null);
   };
 
-  const handleDelete = (store: Store) => {
+  const handleDelete = async (store: Store) => {
     if (stores.length <= 1) {
-      alert('Satu-satunya cabang/toko tidak boleh dihapus.');
+      toast.warning('Operasi Ditolak', 'Satu-satunya cabang/toko tidak boleh dihapus.');
       return;
     }
     const storeProducts = products.filter((p) => p.storeId === store.id);
     const storeSales = sales.filter((s) => s.storeId === store.id);
-    const confirmMsg = `Hapus cabang "${store.name}"?\n(Cabang ini memiliki ${storeProducts.length} produk dan ${storeSales.length} riwayat transaksi)`;
+    
+    const confirmed = await confirmModal({
+      title: `Hapus Cabang "${store.name}"?`,
+      message: `Cabang ini memiliki ${storeProducts.length} produk dan ${storeSales.length} riwayat transaksi. Data akan dihapus permanen.`,
+      confirmText: 'Ya, Hapus Cabang',
+      type: 'danger',
+    });
 
-    if (window.confirm(confirmMsg)) {
+    if (confirmed) {
       deleteStore(store.id);
+      toast.success('Cabang Dihapus', `Cabang "${store.name}" telah dihapus.`);
     }
   };
 

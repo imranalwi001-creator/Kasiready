@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { Product, CartItem } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import { playScanBeep } from '../../utils/soundNotifications';
@@ -91,6 +92,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     removeFromCart,
     clearCart,
   } = useStore();
+  const { toast, confirm: confirmModal } = useToast();
 
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraStarting, setIsCameraStarting] = useState<boolean>(false);
@@ -417,10 +419,17 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   };
 
   // Cancel / Clear Cart
-  const handleCancelCart = () => {
+  const handleCancelCart = async () => {
     if (cart.length > 0) {
-      if (window.confirm('Batalkan transaksi saat ini dan kosongkan keranjang?')) {
+      const confirmed = await confirmModal({
+        title: 'Batalkan Transaksi?',
+        message: 'Batalkan transaksi saat ini dan kosongkan keranjang?',
+        confirmText: 'Ya, Batalkan',
+        type: 'danger',
+      });
+      if (confirmed) {
         clearCart();
+        toast.info('Transaksi Dibatalkan', 'Keranjang belanja telah dikosongkan.');
         onClose();
       }
     } else {

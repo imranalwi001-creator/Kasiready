@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { Customer, CustomerTier } from '../../types';
 import {
   formatRupiah,
@@ -32,6 +33,7 @@ interface CustomersPageProps {
 
 export const CustomersPage: React.FC<CustomersPageProps> = ({ onSelectReceipt }) => {
   const { customers, deleteCustomer, settings } = useStore();
+  const { toast, confirm: confirmModal } = useToast();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTier, setSelectedTier] = useState<CustomerTier | 'ALL'>('ALL');
@@ -68,13 +70,16 @@ export const CustomersPage: React.FC<CustomersPageProps> = ({ onSelectReceipt })
     });
   }, [customers, searchQuery, selectedTier]);
 
-  const handleDelete = (customer: Customer) => {
-    if (
-      window.confirm(
-        `Hapus data pelanggan "${customer.name}"? Poin loyalitas dan riwayat tautan akan direset.`
-      )
-    ) {
+  const handleDelete = async (customer: Customer) => {
+    const confirmed = await confirmModal({
+      title: `Hapus Pelanggan "${customer.name}"?`,
+      message: `Data member dan seluruh poin loyalitas (${customer.points || 0} poin) akan dihapus permanen.`,
+      confirmText: 'Ya, Hapus Member',
+      type: 'danger',
+    });
+    if (confirmed) {
       deleteCustomer(customer.id);
+      toast.success('Pelanggan Dihapus', `Data member "${customer.name}" telah dihapus.`);
     }
   };
 

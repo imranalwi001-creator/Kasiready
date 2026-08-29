@@ -412,6 +412,8 @@ app.post('/api/digiflazz/cek-saldo', async (req, res) => {
   }
 });
 
+const priceListMemoryCache: Record<string, { data: any[]; timestamp: number }> = {};
+
 // 3. Price List Endpoint (POST https://api.digiflazz.com/v1/price-list)
 app.post('/api/digiflazz/price-list', async (req, res) => {
   const startTime = Date.now();
@@ -421,6 +423,7 @@ app.post('/api/digiflazz/price-list', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Username dan apiKey wajib diisi' });
     }
 
+    const cacheKey = `${username}_${cmd}`;
     const sign = calculateMD5(`${username}${apiKey}pricelist`);
     const requestPayload = {
       cmd,
@@ -442,6 +445,21 @@ app.post('/api/digiflazz/price-list', async (req, res) => {
       digiflazzData = await digiflazzRes.json();
     } catch (networkError: any) {
       digiflazzData = { data: [] };
+    }
+
+    // Check if valid data received
+    if (Array.isArray(digiflazzData?.data) && digiflazzData.data.length > 0) {
+      priceListMemoryCache[cacheKey] = {
+        data: digiflazzData.data,
+        timestamp: Date.now(),
+      };
+    } else if (priceListMemoryCache[cacheKey]?.data?.length) {
+      // Return cached data gracefully when rate limited or temporary empty
+      digiflazzData = {
+        data: priceListMemoryCache[cacheKey].data,
+        cached: true,
+        note: 'Menggunakan data cache produk aktif terbaru',
+      };
     }
 
     res.json({
@@ -468,11 +486,77 @@ app.post(['/api/digiflazz/webhook', '/api/ppob/callback'], (req, res) => {
   });
 });
 
+// 5. Inquiry Endpoint (PLN / Postpaid Real Check)
+app.post('/api/digiflazz/inquiry', async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const { username, apiKey, buyer_sku_code = 'pln', customer_no, ref_id, testing } = req.body;
+
+    if (!username || !apiKey || !customer_no) {
+      return res.status(400).json({
+        success: false,
+        message: 'Parameter username, apiKey, dan customer_no wajib diisi',
+      });
+    }
+
+    const inqRefId = ref_id || `inq-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const sign = calculateMD5(`${username}${apiKey}${inqRefId}`);
+    const isDevKey = String(apiKey).startsWith('dev-') || testing === true;
+
+    const requestPayload: any = {
+      commands: 'inq-pasca',
+      username,
+      buyer_sku_code,
+      customer_no,
+      ref_id: inqRefId,
+      sign,
+    };
+
+    if (isDevKey) {
+      requestPayload.testing = true;
+    }
+
+    console.log('[DigiFlazz API] Sending Inquiry Request:', JSON.stringify(requestPayload));
+
+    let digiflazzRes: Response;
+    let digiflazzData: any;
+    let httpStatus = 200;
+
+    try {
+      digiflazzRes = await fetch('https://api.digiflazz.com/v1/transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestPayload),
+      });
+      httpStatus = digiflazzRes.status;
+      digiflazzData = await digiflazzRes.json();
+    } catch (networkError: any) {
+      console.warn('[DigiFlazz API] Network error on inquiry:', networkError.message);
+    }
+
+    res.json({
+      success: true,
+      httpStatus,
+      latencyMs: Date.now() - startTime,
+      request: requestPayload,
+      response: digiflazzData,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Start Server with Vite Middleware
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        watch: {
+          ignored: ['**/data/**', '**/pos_database.json', '**/*.json'],
+        },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { Product } from '../../types';
 import { BarcodeScannerModal } from '../common/BarcodeScannerModal';
 import {
@@ -78,7 +79,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   onClose,
   productToEdit,
 }) => {
-  const { categories, addProduct, updateProduct, stores, activeStoreId } = useStore();
+  const { categories, stores, addProduct, updateProduct, activeStoreId } =
+    useStore();
+  const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [storeId, setStoreId] = useState<string>(activeStoreId);
@@ -158,7 +161,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   // Image file handler
   const processImageFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert('Hanya file gambar (JPG, PNG, WebP) yang diperbolehkan.');
+      toast.error('Format Tidak Didukung', 'Hanya file gambar (JPG, PNG, WebP) yang diperbolehkan.');
       return;
     }
 
@@ -225,6 +228,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         image: finalImage,
         description: description.trim(),
       });
+      toast.success('Produk Diperbarui', `Perubahan untuk "${name.trim()}" berhasil disimpan.`);
     } else {
       addProduct({
         storeId,
@@ -239,6 +243,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         image: finalImage,
         description: description.trim(),
       });
+      toast.success('Produk Ditambahkan', `"${name.trim()}" berhasil dimasukkan ke katalog inventaris.`);
     }
 
     onClose();

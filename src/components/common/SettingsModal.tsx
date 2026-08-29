@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { User, UserRole } from '../../types';
 import {
   X,
@@ -55,8 +56,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     deleteUser,
     currentUser,
     stores,
+    addStore,
+    updateStore,
+    deleteStore,
     hasRole,
   } = useStore();
+  const { toast, confirm: confirmModal } = useToast();
 
   const [activeTab, setActiveTab] = useState<
     'gateway' | 'audio' | 'whatsapp' | 'printer' | 'users' | 'store' | 'general' | 'database'
@@ -170,13 +175,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     reader.readAsText(file);
   };
 
-  const handleResetConfirm = () => {
-    if (
-      window.confirm(
-        'Apakah Anda yakin ingin mengatur ulang data ke data bawaan awal? Semua produk, transaksi, dan pengaturan akan dikembalikan.'
-      )
-    ) {
+  const handleResetConfirm = async () => {
+    const confirmed = await confirmModal({
+      title: 'Reset ke Data Awal?',
+      message: 'Semua produk, transaksi, dan pengaturan akan dikembalikan ke data demo awal.',
+      confirmText: 'Ya, Reset Data',
+      type: 'danger',
+    });
+    if (confirmed) {
       resetToDefault();
+      toast.success('Database Direset', 'Data telah dikembalikan ke setelan awal.');
       onClose();
     }
   };
@@ -222,12 +230,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     });
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     if (userId === currentUser?.id) {
-      alert('Anda tidak dapat menghapus akun yang sedang Anda gunakan.');
+      toast.warning('Operasi Ditolak', 'Anda tidak dapat menghapus akun yang sedang Anda gunakan.');
       return;
     }
-    deleteUser(userId);
+    const target = users.find((u) => u.id === userId);
+    const confirmed = await confirmModal({
+      title: `Hapus Pengguna "${target?.name || ''}"?`,
+      message: `Akun @${target?.username || ''} akan dihapus permanen dari sistem.`,
+      confirmText: 'Ya, Hapus',
+      type: 'danger',
+    });
+    if (confirmed) {
+      deleteUser(userId);
+      toast.success('Pengguna Dihapus', `Akun @${target?.username || ''} telah dihapus.`);
+    }
   };
 
   const getRoleBadge = (role: UserRole) => {

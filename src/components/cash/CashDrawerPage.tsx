@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { CashExpense, CashShift, ExpenseCategory } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import { OpenShiftModal } from './OpenShiftModal';
@@ -54,6 +55,8 @@ export const CashDrawerPage: React.FC = () => {
     activeStore,
     currentUser,
   } = useStore();
+  
+  const { toast, confirm: confirmModal } = useToast();
 
   const todayStr = new Date().toISOString().split('T')[0];
   const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
@@ -107,9 +110,16 @@ export const CashDrawerPage: React.FC = () => {
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }, [cashShifts, selectedStoreId]);
 
-  const handleDeleteExpense = (id: string, desc: string) => {
-    if (window.confirm(`Hapus pencatatan pengeluaran "${desc}"?`)) {
+  const handleDeleteExpense = async (id: string, desc: string) => {
+    const confirmed = await confirmModal({
+      title: 'Hapus Catatan Pengeluaran?',
+      message: `Catatan pengeluaran "${desc}" akan dihapus permanen dari buku kas.`,
+      confirmText: 'Ya, Hapus',
+      type: 'danger',
+    });
+    if (confirmed) {
       deleteExpense(id);
+      toast.success('Pengeluaran Dihapus', `Catatan "${desc}" telah dihapus.`);
     }
   };
 

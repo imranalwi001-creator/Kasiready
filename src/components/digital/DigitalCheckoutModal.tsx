@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DigitalProduct, DigitalTransaction, DigitalInquiryData, PaymentMethod, StoreSettings } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
+import { useToast } from '../../context/ToastContext';
 import {
   X,
   Check,
@@ -52,6 +53,7 @@ export const DigitalCheckoutModal: React.FC<DigitalCheckoutModalProps> = ({
   onConfirmPayment,
   onOpenReceipt,
 }) => {
+  const { toast } = useToast();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [cashGiven, setCashGiven] = useState<number>(0);
   const [cashGivenStr, setCashGivenStr] = useState<string>('');
@@ -111,7 +113,7 @@ export const DigitalCheckoutModal: React.FC<DigitalCheckoutModalProps> = ({
 
   const handleExecutePayment = async () => {
     if (paymentMethod === 'cash' && cashGiven < sellingPrice) {
-      alert('Uang yang diterima kurang dari total harga.');
+      toast.warning('Nominal Bayar Kurang', 'Uang tunai yang diterima kurang dari total harga tagihan.');
       return;
     }
 
@@ -145,8 +147,9 @@ export const DigitalCheckoutModal: React.FC<DigitalCheckoutModalProps> = ({
       });
 
       setCompletedTx(tx);
+      toast.success('Transaksi Berhasil!', `${product.name} ke ${targetNumber} sukses diproses.`);
     } catch (err: any) {
-      alert(err.message || 'Transaksi gagal diproses.');
+      toast.error('Transaksi Gagal Diproses', err.message || 'Terjadi gangguan saat memproses transaksi ke server.');
     } finally {
       setIsProcessing(false);
     }

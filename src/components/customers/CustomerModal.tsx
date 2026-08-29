@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { Customer } from '../../types';
 import { X, User, Phone, Mail, MapPin, Award, FileText } from 'lucide-react';
 
@@ -15,6 +16,7 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
   customerToEdit,
 }) => {
   const { addCustomer, updateCustomer } = useStore();
+  const { toast } = useToast();
 
   const [name, setName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
@@ -55,6 +57,7 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
         address: address.trim(),
         notes: notes.trim(),
       });
+      toast.success('Pelanggan Diperbarui', `Data member "${name.trim()}" berhasil disimpan.`);
     } else {
       addCustomer({
         name: name.trim(),
@@ -64,6 +67,7 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
         notes: notes.trim(),
         initialPoints: Number(initialPoints) || 0,
       });
+      toast.success('Member Terdaftar', `Selamat bergabung, "${name.trim()}"!`);
     }
 
     onClose();

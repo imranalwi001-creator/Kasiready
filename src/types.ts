@@ -396,6 +396,7 @@ export interface DigitalProduct {
   provider: string; // e.g. 'Telkomsel', 'Indosat', 'XL', 'Tri', 'Smartfren', 'PLN', 'DANA', 'GoPay', 'OVO', 'ShopeePay', 'Maxim', 'Mobile Legends', 'Free Fire', 'BPJS', 'PDAM'
   name: string;
   denomination: number;
+  buyerSkuCode?: string; // DigiFlazz / B2B SKU Code (e.g. xld10)
   costPrice: number; // HPP Modal Server
   sellingPrice: number; // Harga Jual ke Konsumen
   adminFee?: number; // Biaya Admin (untuk Token / Pascabayar)

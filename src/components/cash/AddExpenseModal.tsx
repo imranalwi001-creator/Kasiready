@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { CashExpense, ExpenseCategory, ExpensePaymentMethod } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import {
@@ -88,10 +89,11 @@ const EXPENSE_CATEGORIES: {
 export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   isOpen,
   onClose,
-  editExpense,
   onSuccess,
+  editExpense,
 }) => {
   const { addExpense, updateExpense, activeStore, currentUser } = useStore();
+  const { toast } = useToast();
 
   const [amount, setAmount] = useState<number>(editExpense ? editExpense.amount : 0);
   const [category, setCategory] = useState<ExpenseCategory>(
@@ -114,11 +116,11 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (amount <= 0) {
-      alert('Masukkan nominal pengeluaran yang valid.');
+      toast.warning('Input Tidak Valid', 'Masukkan nominal pengeluaran yang valid.');
       return;
     }
     if (!description.trim()) {
-      alert('Harap isi keperluan / deskripsi pengeluaran.');
+      toast.warning('Deskripsi Diperlukan', 'Harap isi keperluan / deskripsi pengeluaran.');
       return;
     }
 
@@ -133,6 +135,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
           receiptNumber: receiptNumber.trim() || undefined,
           notes: notes.trim() || undefined,
         });
+        toast.success('Pengeluaran Diperbarui', `Catatan "${description.trim()}" berhasil disimpan.`);
       } else {
         addExpense({
           storeId: activeStore?.id || 'store-1',
@@ -145,13 +148,14 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
           receiptNumber: receiptNumber.trim() || undefined,
           notes: notes.trim() || undefined,
         });
+        toast.success('Pengeluaran Dicatat', `Pengeluaran ${formatRupiah(amount)} berhasil dicatat.`);
       }
 
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Gagal menyimpan pengeluaran.');
+      toast.error('Gagal Menyimpan', 'Terjadi kendala saat mencatat pengeluaran.');
     } finally {
       setIsSubmitting(false);
     }

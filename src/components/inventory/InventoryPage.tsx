@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { Product } from '../../types';
 import { formatRupiah, formatNumber } from '../../utils/formatters';
 import { ProductModal } from './ProductModal';
@@ -41,11 +42,11 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
   const {
     products,
     categories,
-    deleteProduct,
-    lowStockProducts,
     stores,
+    deleteProduct,
     activeStoreId,
   } = useStore();
+  const { toast, confirm: confirmModal } = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -121,13 +122,16 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
     0
   );
 
-  const handleDelete = (prod: Product) => {
-    if (
-      confirm(
-        `Apakah Anda yakin ingin menghapus "${prod.name}" (${prod.sku}) dari database produk?`
-      )
-    ) {
+  const handleDelete = async (prod: Product) => {
+    const confirmed = await confirmModal({
+      title: `Hapus "${prod.name}"?`,
+      message: `Apakah Anda yakin ingin menghapus produk "${prod.name}" (${prod.sku}) dari database? Tindakan ini tidak dapat dibatalkan.`,
+      confirmText: 'Ya, Hapus Produk',
+      type: 'danger',
+    });
+    if (confirmed) {
       deleteProduct(prod.id);
+      toast.success('Produk Dihapus', `Produk "${prod.name}" telah dihapus dari inventaris.`);
     }
   };
 

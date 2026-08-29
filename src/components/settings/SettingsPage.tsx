@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { useToast } from '../../context/ToastContext';
 import { User, UserRole } from '../../types';
 import { BrandLogo } from '../common/BrandLogo';
 import {
@@ -82,6 +83,8 @@ export const SettingsPage: React.FC = () => {
     digitalDepositBalance,
     syncPPOBServerBalance,
   } = useStore();
+
+  const { toast, confirm: confirmModal } = useToast();
 
   const [activeTab, setActiveTab] = useState<
     'brand' | 'gateway' | 'ppob' | 'audio' | 'whatsapp' | 'printer' | 'users' | 'store' | 'general' | 'database'
@@ -219,6 +222,7 @@ export const SettingsPage: React.FC = () => {
     setSettings(formData);
     setActiveCashier(cashierInput.trim() || 'Kasir 1');
     setSaveSuccess(true);
+    toast.success('Pengaturan Disimpan', 'Konfigurasi toko, kasir, dan gateway PPOB berhasil diperbarui.');
     setTimeout(() => {
       setSaveSuccess(false);
     }, 2500);
@@ -364,12 +368,12 @@ export const SettingsPage: React.FC = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Silakan pilih file gambar (PNG, JPG, SVG, WebP).');
+      toast.error('Format File Salah', 'Silakan pilih file gambar (PNG, JPG, SVG, WebP).');
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran file logo maksimal 2MB.');
+      toast.warning('File Terlalu Besar', 'Ukuran file logo maksimal 2MB.');
       return;
     }
 
@@ -2518,9 +2522,16 @@ export const SettingsPage: React.FC = () => {
                                 <button
                                   type="button"
                                   id={`delete-user-btn-${user.id}`}
-                                  onClick={() => {
-                                    if (window.confirm(`Hapus akun pengguna @${user.username} (${user.name})?`)) {
+                                  onClick={async () => {
+                                    const confirmed = await confirmModal({
+                                      title: `Hapus Akun @${user.username}?`,
+                                      message: `Akun kasir/admin "${user.name}" akan dihapus permanen dari sistem.`,
+                                      confirmText: 'Ya, Hapus Akun',
+                                      type: 'danger',
+                                    });
+                                    if (confirmed) {
                                       deleteUser(user.id);
+                                      toast.success('Pengguna Dihapus', `Akun @${user.username} berhasil dihapus.`);
                                     }
                                   }}
                                   className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-transparent hover:border-rose-200 transition cursor-pointer"
@@ -2903,10 +2914,16 @@ export const SettingsPage: React.FC = () => {
                   </p>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm('Yakin ingin mereset seluruh database ke setelan awal?')) {
+                    onClick={async () => {
+                      const confirmed = await confirmModal({
+                        title: 'Reset Seluruh Database?',
+                        message: 'Tindakan ini akan mengembalikan seluruh data produk, transaksi, dan pengaturan ke setelan demo awal.',
+                        confirmText: 'Ya, Reset Database',
+                        type: 'danger',
+                      });
+                      if (confirmed) {
                         resetToDefault();
-                        alert('Database telah direset ke setelan awal.');
+                        toast.success('Database Direset', 'Seluruh data telah dipulihkan ke setelan awal.');
                       }
                     }}
                     className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer"
