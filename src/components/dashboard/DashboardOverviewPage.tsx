@@ -234,18 +234,18 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
   }, [sales]);
 
   return (
-    <div className="min-h-full bg-[#F8F9FA] p-4 sm:p-6 lg:p-8 space-y-6 font-sans text-slate-800">
-      {/* Friendly Clean Hero Section (Inspired by Design System) */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1.5 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-[#00A876] text-xs font-bold border border-emerald-200/60 mb-1">
+    <div className="min-h-full bg-[#FAF9F5] p-4 sm:p-6 lg:p-8 space-y-6 text-[#1C1917]">
+      {/* Friendly Clean Hero Section (Inspired by Digisschool Design System) */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EDE8DF] shadow-2xs relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F4F1EA] text-[#322A23] text-xs font-semibold border border-[#E2DDD2] mb-1">
             <span className="w-2 h-2 rounded-full bg-[#00A876] animate-ping" />
             <span>Sistem Kasir Aktif & Sinkron Cloud</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1C1917] tracking-tight">
             Dashboard Kasir & Toko
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
+          <p className="text-xs sm:text-sm text-[#78716C] font-normal leading-relaxed">
             Semua aktivitas tokomu ada di satu tempat: kasir POS, stok barang, pelanggan, dan analisis laba penjualan.
           </p>
         </div>
@@ -257,15 +257,15 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
             <button
               type="button"
               onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs sm:text-sm font-bold text-slate-700 transition-all cursor-pointer shadow-2xs"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#F4F1EA] hover:bg-[#EAE5DB] border border-[#E2DDD2] text-xs sm:text-sm font-semibold text-[#1C1917] transition-all cursor-pointer shadow-2xs"
             >
-              <Building2 className="w-4 h-4 text-[#00A876]" />
+              <Building2 className="w-4 h-4 text-[#D9B890]" />
               <span>
                 {selectedBundleFilter === 'all'
                   ? 'Semua Cabang Toko'
                   : stores.find((s) => s.id === selectedBundleFilter)?.name || 'Cabang Terpilih'}
               </span>
-              <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />
+              <ChevronDown className="w-4 h-4 text-[#78716C] ml-1" />
             </button>
 
             {isFilterDropdownOpen && (
@@ -274,8 +274,8 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
                   className="fixed inset-0 z-30"
                   onClick={() => setIsFilterDropdownOpen(false)}
                 />
-                <div className="absolute right-0 mt-2 w-64 bg-white text-slate-800 rounded-2xl shadow-xl border border-slate-200 z-40 p-2 animate-in fade-in zoom-in-95 duration-150">
-                  <p className="text-[10px] font-bold uppercase text-slate-400 px-2.5 py-1.5">
+                <div className="absolute right-0 mt-2 w-64 bg-white text-[#1C1917] rounded-3xl shadow-xl border border-[#EDE8DF] z-40 p-2 animate-in fade-in zoom-in-95 duration-150">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#78716C] px-3 py-1.5">
                     Filter Cabang
                   </p>
                   <div className="space-y-1">
@@ -285,14 +285,14 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
                         setSelectedBundleFilter('all');
                         setIsFilterDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                      className={`w-full text-left px-3 py-2 rounded-2xl text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
                         selectedBundleFilter === 'all'
-                          ? 'bg-[#00A876] text-white'
-                          : 'text-slate-700 hover:bg-slate-100'
+                          ? 'bg-[#EAE5DB] text-[#1C1917] font-bold'
+                          : 'text-[#78716C] hover:bg-[#F4F1EA] hover:text-[#1C1917]'
                       }`}
                     >
                       <span>Semua Cabang Toko</span>
-                      {selectedBundleFilter === 'all' && <CheckCircle2 className="w-4 h-4 text-white" />}
+                      {selectedBundleFilter === 'all' && <CheckCircle2 className="w-4 h-4 text-[#322A23]" />}
                     </button>
                     {stores.map((st) => (
                       <button
@@ -302,17 +302,17 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
                           setSelectedBundleFilter(st.id);
                           setIsFilterDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                        className={`w-full text-left px-3 py-2 rounded-2xl text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
                           selectedBundleFilter === st.id
-                            ? 'bg-[#00A876] text-white'
-                            : 'text-slate-700 hover:bg-slate-100'
+                            ? 'bg-[#EAE5DB] text-[#1C1917] font-bold'
+                            : 'text-[#78716C] hover:bg-[#F4F1EA] hover:text-[#1C1917]'
                         }`}
                       >
                         <div className="truncate">
                           <p className="truncate">{st.name}</p>
-                          <span className="text-[10px] opacity-70 font-mono">{st.code}</span>
+                          <span className="text-[10px] text-[#A8A29E] font-mono">{st.code}</span>
                         </div>
-                        {selectedBundleFilter === st.id && <CheckCircle2 className="w-4 h-4 text-white" />}
+                        {selectedBundleFilter === st.id && <CheckCircle2 className="w-4 h-4 text-[#322A23]" />}
                       </button>
                     ))}
                   </div>
@@ -324,9 +324,9 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('pos')}
-            className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition active:scale-95 cursor-pointer"
+            className="px-4 py-2.5 rounded-2xl bg-[#322A23] hover:bg-[#231D18] text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs transition active:scale-95 cursor-pointer"
           >
-            <ShoppingCart className="w-4 h-4" />
+            <ShoppingCart className="w-4 h-4 text-[#D9B890]" />
             <span>Buka Kasir</span>
           </button>
         </div>
@@ -334,22 +334,19 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
 
       {/* Row 1: 4 Top KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        {/* Card 1: TOTAL USERS (Hero Averion Emerald Solid Card) */}
-        <div className="bg-[#00A876] hover:bg-[#009b6c] transition-all text-white rounded-2xl p-5 shadow-xs flex flex-col justify-between relative overflow-hidden group">
-          {/* Subtle decorative glow */}
-          <div className="absolute -right-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none" />
-
+        {/* Card 1: TOTAL USERS */}
+        <div className="bg-white rounded-3xl p-5 border border-[#EDE8DF] shadow-2xs flex flex-col justify-between hover:border-[#D9B890] transition-all">
           <div className="flex items-start justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-white/90">
-              TOTAL USERS
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#78716C]">
+              TOTAL PELANGGAN
             </span>
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-xs">
-              <Users className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-2xl bg-[#F4F1EA] flex items-center justify-center text-[#1C1917]">
+              <Users className="w-4 h-4" />
             </div>
           </div>
 
           <div className="my-3">
-            <p className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white font-sans">
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1C1917] tabular-nums">
               {formatNumber(totalUsersCount)}
             </p>
           </div>
@@ -357,7 +354,7 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('customers')}
-            className="flex items-center gap-1 text-xs font-semibold text-white/90 hover:text-white transition group-hover:translate-x-0.5 cursor-pointer mt-1"
+            className="flex items-center gap-1 text-xs font-semibold text-[#78716C] hover:text-[#1C1917] transition cursor-pointer mt-1"
           >
             <span>Lihat semua</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -365,18 +362,18 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
         </div>
 
         {/* Card 2: TOTAL ORDERS */}
-        <div className="bg-white hover:border-slate-300 transition-all rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-3xl p-5 border border-[#EDE8DF] shadow-2xs flex flex-col justify-between hover:border-[#D9B890] transition-all">
           <div className="flex items-start justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              TOTAL ORDERS
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#78716C]">
+              TOTAL TRANSAKSI
             </span>
-            <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-[#00A876] shadow-xs">
-              <CreditCard className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-2xl bg-[#F4F1EA] flex items-center justify-center text-[#1C1917]">
+              <CreditCard className="w-4 h-4" />
             </div>
           </div>
 
           <div className="my-3">
-            <p className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 font-sans">
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1C1917] tabular-nums">
               {formatNumber(totalOrdersCount)}
             </p>
           </div>
@@ -384,54 +381,54 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className="flex items-center gap-1 text-xs font-semibold text-[#00A876] hover:text-[#008f65] transition cursor-pointer mt-1"
+            className="flex items-center gap-1 text-xs font-semibold text-[#78716C] hover:text-[#1C1917] transition cursor-pointer mt-1"
           >
-            <span>Lihat semua</span>
+            <span>Lihat riwayat</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Card 3: TOTAL REVENUE */}
-        <div className="bg-white hover:border-slate-300 transition-all rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div className="bg-white rounded-3xl p-5 border border-[#EDE8DF] shadow-2xs flex flex-col justify-between hover:border-[#D9B890] transition-all">
           <div className="flex items-start justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              TOTAL REVENUE
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#78716C]">
+              TOTAL PENDAPATAN
             </span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#00A876] shadow-xs">
-              <DollarSign className="w-5 h-5 font-bold" />
+            <div className="w-9 h-9 rounded-2xl bg-[#F4F1EA] text-[#D9B890] flex items-center justify-center">
+              <DollarSign className="w-4 h-4 font-bold" />
             </div>
           </div>
 
           <div className="my-3">
-            <p className="text-xl sm:text-2xl lg:text-[22px] xl:text-2xl font-extrabold tracking-tight text-slate-900 font-sans truncate">
+            <p className="text-xl sm:text-2xl font-bold tracking-tight text-[#1C1917] truncate tabular-nums">
               {formatRupiah(totalRevenue)}
             </p>
           </div>
 
-          <p className="text-xs font-medium text-slate-400 mt-1">
-            Dari transaksi paid
+          <p className="text-xs font-normal text-[#78716C] mt-1">
+            Dari transaksi lunas
           </p>
         </div>
 
-        {/* Card 4: ACTIVE MEMBERS */}
-        <div className="bg-white hover:border-slate-300 transition-all rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        {/* Card 4: ACTIVE PRODUCTS */}
+        <div className="bg-white rounded-3xl p-5 border border-[#EDE8DF] shadow-2xs flex flex-col justify-between hover:border-[#D9B890] transition-all">
           <div className="flex items-start justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              ACTIVE MEMBERS
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#78716C]">
+              PRODUK AKTIF
             </span>
-            <div className="w-10 h-10 rounded-xl bg-cyan-50 border border-cyan-100 flex items-center justify-center text-teal-600 shadow-xs">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-2xl bg-[#F4F1EA] text-[#00A876] flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
 
           <div className="my-3">
-            <p className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 font-sans">
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1C1917] tabular-nums">
               {formatNumber(activeMembersCount)}
             </p>
           </div>
 
-          <p className="text-xs font-medium text-slate-400 mt-1">
-            Akses aktif saat ini
+          <p className="text-xs font-normal text-[#78716C] mt-1">
+            Stok siap jual
           </p>
         </div>
       </div>
