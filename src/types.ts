@@ -24,6 +24,7 @@ export type CustomerTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 export type TabType =
   | 'dashboard'
   | 'pos'
+  | 'digital-products'
   | 'customers'
   | 'inventory'
   | 'history'
@@ -332,6 +333,23 @@ export interface EnabledPaymentMethods {
   dana?: boolean;
 }
 
+export type PPOBProcessingMode = 'auto_api' | 'manual';
+export type PPOBProviderType = 'digiflazz' | 'ayoconnect' | 'custom_webhook';
+
+export interface PPOBGatewaySettings {
+  mode: PPOBProcessingMode; // 'auto_api' | 'manual'
+  provider: PPOBProviderType; // 'digiflazz' | 'ayoconnect' | 'custom_webhook'
+  username: string; // DigiFlazz Username
+  apiKey: string; // DigiFlazz Production/Dev Key
+  webhookSecret?: string;
+  isDevelopmentMode: boolean; // Sandbox vs Production
+  autoCheckBalance: boolean;
+  serverBalance: number; // Saldo deposit live server API (Rp)
+  lastBalanceSync?: string;
+  allowManualFallback: boolean; // Beralih ke input manual SN jika API timeout / gangguan
+  ipWhitelistNote?: string;
+}
+
 export interface StoreSettings {
   name: string;
   tagline: string;
@@ -353,4 +371,80 @@ export interface StoreSettings {
   printer: PrinterConfig;
   whatsapp: WhatsAppGatewaySettings;
   audioNotification?: AudioNotificationSettings;
+  ppobGateway?: PPOBGatewaySettings;
 }
+
+export type DigitalCategory = 'pulsa' | 'data' | 'pln' | 'ewallet' | 'postpaid' | 'game';
+
+export interface DigitalProviderInfo {
+  id: string;
+  name: string;
+  category: DigitalCategory;
+  logoColor: string;
+  bgLight: string;
+  badgeBorder: string;
+  iconName?: string;
+  prefixes?: string[];
+  placeholder?: string;
+  inputLabel?: string;
+  helperText?: string;
+}
+
+export interface DigitalProduct {
+  id: string;
+  category: DigitalCategory;
+  provider: string; // e.g. 'Telkomsel', 'Indosat', 'XL', 'Tri', 'Smartfren', 'PLN', 'DANA', 'GoPay', 'OVO', 'ShopeePay', 'Maxim', 'Mobile Legends', 'Free Fire', 'BPJS', 'PDAM'
+  name: string;
+  denomination: number;
+  costPrice: number; // HPP Modal Server
+  sellingPrice: number; // Harga Jual ke Konsumen
+  adminFee?: number; // Biaya Admin (untuk Token / Pascabayar)
+  description: string;
+  status: 'available' | 'trouble' | 'empty';
+  sortOrder?: number;
+}
+
+export interface DigitalInquiryData {
+  subscriberName?: string;
+  meterNo?: string;
+  subscriberId?: string;
+  tariffPower?: string; // e.g. "R1M / 900 VA"
+  billPeriod?: string;
+  adminFee?: number;
+  penaltyFee?: number;
+  kwhEstimate?: string;
+  totalBill?: number;
+}
+
+export interface DigitalTransaction {
+  id: string;
+  invoiceNumber: string;
+  storeId: string;
+  category: DigitalCategory;
+  provider: string;
+  productId: string;
+  productName: string;
+  denomination: number;
+  targetNumber: string; // Nomor HP, No Meter PLN, ID Pelanggan, User ID Game
+  customerName?: string;
+  costPrice: number;
+  sellingPrice: number;
+  adminFee: number;
+  profit: number; // sellingPrice - costPrice
+  totalPaid: number;
+  paymentMethod: PaymentMethod;
+  status: 'success' | 'pending' | 'failed';
+  serialNumber: string; // Nomor SN atau 20 Digit Kode Token PLN
+  inquiryData?: DigitalInquiryData;
+  cashierName: string;
+  cashierId?: string;
+  processingMode?: PPOBProcessingMode; // 'auto_api' | 'manual'
+  apiProvider?: string; // 'DigiFlazz' | 'Ayoconnect' | 'Manual'
+  apiRefId?: string; // Ref ID dari Server Switcher
+  apiStatusCode?: string; // e.g. "00" (Sukses)
+  manualInputReason?: string;
+  createdAt: string; // ISO
+  completedAt?: string;
+  notes?: string;
+}
+

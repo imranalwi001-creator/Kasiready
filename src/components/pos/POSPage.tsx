@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
-import { Product, Sale } from '../../types';
+import { Product, Sale, CartItem } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import { CheckoutModal } from './CheckoutModal';
 import { ReceiptModal } from '../receipt/ReceiptModal';
@@ -36,8 +36,25 @@ import {
   Coins,
   TrendingDown,
   Wallet,
+  Zap,
   Lock,
+  BookmarkCheck,
+  Clock,
+  ArrowRight,
+  RotateCcw,
 } from 'lucide-react';
+
+interface SavedTransaction {
+  id: string;
+  timestamp: string;
+  timeLabel: string;
+  items: CartItem[];
+  totalUnits: number;
+  subtotal: number;
+  note?: string;
+}
+
+const SAVED_TX_KEY = 'pos_saved_transactions_v2';
 
 export const POSPage: React.FC = () => {
   const {
@@ -48,6 +65,7 @@ export const POSPage: React.FC = () => {
     updateCartQty,
     removeFromCart,
     clearCart,
+    loadCart,
     cartTotals,
     settings,
     activeStore,
@@ -72,7 +90,99 @@ export const POSPage: React.FC = () => {
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [isOpenShiftModalOpen, setIsOpenShiftModalOpen] = useState(false);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
+  const [isSavedTransactionsOpen, setIsSavedTransactionsOpen] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+  // Saved / Held transactions state
+  const [savedTransactions, setSavedTransactions] = useState<SavedTransaction[]>(() => {
+    try {
+      const stored = localStorage.getItem(SAVED_TX_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const saveTransactionsToStorage = (list: SavedTransaction[]) => {
+    setSavedTransactions(list);
+    try {
+      localStorage.setItem(SAVED_TX_KEY, JSON.stringify(list));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleHoldCurrentTransaction = () => {
+    if (cart.length === 0) {
+      setScanFeedback({
+        message: 'Keranjang belanja masih kosong untuk disimpan',
+        type: 'warning',
+      });
+      setTimeout(() => setScanFeedback(null), 2500);
+      return;
+    }
+
+    const now = new Date();
+    const timeLabel = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const newSaved: SavedTransaction = {
+      id: `hold-${Date.now()}`,
+      timestamp: now.toISOString(),
+      timeLabel,
+      items: [...cart],
+      totalUnits: cartTotals.totalUnits,
+      subtotal: cartTotals.subtotal,
+      note: `Antrean #${savedTransactions.length + 1} (${timeLabel})`,
+    };
+
+    const updated = [newSaved, ...savedTransactions];
+    saveTransactionsToStorage(updated);
+    clearCart();
+
+    playScanBeep(settings.audioNotification?.volume || 80);
+    setScanFeedback({
+      message: `Transaksi (${newSaved.totalUnits} unit) berhasil disimpan ke antrean`,
+      type: 'success',
+    });
+    setTimeout(() => setScanFeedback(null), 3000);
+  };
+
+  const handleRestoreTransaction = (tx: SavedTransaction) => {
+    if (cart.length > 0) {
+      const confirmReplace = window.confirm(
+        'Keranjang saat ini berisi item. Ganti dengan transaksi tersimpan ini?'
+      );
+      if (!confirmReplace) return;
+    }
+
+    loadCart(tx.items);
+    const updated = savedTransactions.filter((s) => s.id !== tx.id);
+    saveTransactionsToStorage(updated);
+    setIsSavedTransactionsOpen(false);
+
+    setScanFeedback({
+      message: `Transaksi (${tx.totalUnits} unit) berhasil dimuat kembali ke keranjang`,
+      type: 'success',
+    });
+    setTimeout(() => setScanFeedback(null), 3000);
+  };
+
+  const handleDeleteSavedTransaction = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = savedTransactions.filter((s) => s.id !== id);
+    saveTransactionsToStorage(updated);
+  };
+
+  const handleClearCart = () => {
+    if (cart.length === 0) return;
+    if (window.confirm('Kosongkan semua pesanan di keranjang belanja?')) {
+      clearCart();
+      setScanFeedback({
+        message: 'Keranjang belanja telah dikosongkan',
+        type: 'warning',
+      });
+      setTimeout(() => setScanFeedback(null), 2000);
+    }
+  };
 
   const todaySummary = useMemo(() => {
     return getDailyCashSummary();
@@ -223,8 +333,29 @@ export const POSPage: React.FC = () => {
           </select>
         </div>
 
-        {/* Cash Status Quick Overview */}
+        {/* Task Bar: Saved Transactions, Cash Status, Expenses */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Saved / Held Transactions Trigger */}
+          <button
+            type="button"
+            id="btn-saved-transactions"
+            onClick={() => setIsSavedTransactionsOpen(true)}
+            className={`px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs border ${
+              savedTransactions.length > 0
+                ? 'bg-indigo-600 border-indigo-500 text-white animate-pulse'
+                : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+            }`}
+            title="Daftar Transaksi Tersimpan / Diparkir"
+          >
+            <BookmarkCheck className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Tersimpan</span>
+            {savedTransactions.length > 0 && (
+              <span className="bg-white text-indigo-900 px-1.5 py-0.2 rounded-full font-black text-[10px]">
+                {savedTransactions.length}
+              </span>
+            )}
+          </button>
+
           <div className="hidden md:flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-700 text-xs">
             <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span className="text-slate-400 text-[11px]">Modal:</span>
@@ -335,6 +466,16 @@ export const POSPage: React.FC = () => {
 
             {/* Category Chips Bar with Horizontal Scroll */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setActiveTab('digital-products')}
+                className="px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/25 animate-pulse"
+                title="Buka Penjualan Pulsa, Paket Data, Token PLN & PPOB"
+              >
+                <Zap className="w-3.5 h-3.5 fill-white" />
+                <span>⚡ Pulsa & PPOB</span>
+              </button>
+
               <button
                 id="filter-category-all"
                 onClick={() => setSelectedCategoryId('all')}
@@ -577,25 +718,28 @@ export const POSPage: React.FC = () => {
         </section>
 
         {/* Right Section: High Density Cart Sidebar (Desktop) */}
+        {/* Right Section: Task-Oriented POS Cart & Checkout Workflow Panel */}
         <aside
           id="pos-cart-panel"
-          className="hidden lg:flex w-80 xl:w-96 bg-white rounded-2xl border border-slate-200 flex-col shrink-0 overflow-hidden shadow-xs h-full"
+          className="hidden lg:flex w-80 xl:w-96 bg-white rounded-2xl sm:rounded-3xl border border-slate-200 flex-col shrink-0 overflow-hidden shadow-xs h-full"
         >
           {/* Header */}
-          <div className="p-3.5 sm:p-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
+          <div className="p-3.5 sm:p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/70 shrink-0">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-[#00A876]" />
-              <h2 className="font-bold text-sm sm:text-base text-slate-900">
-                Pesanan ({cartTotals.totalUnits} Item)
+              <h2 className="font-extrabold text-sm sm:text-base text-slate-900">
+                Keranjang Kasir ({cartTotals.totalUnits} Unit)
               </h2>
             </div>
             {cart.length > 0 && (
               <button
                 id="clear-cart-btn"
-                onClick={clearCart}
-                className="text-rose-500 hover:text-rose-700 text-xs font-bold uppercase transition cursor-pointer"
+                onClick={handleClearCart}
+                className="text-rose-600 hover:text-rose-700 text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                title="Batalkan dan kosongkan keranjang"
               >
-                Bersihkan
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Batal</span>
               </button>
             )}
           </div>
@@ -603,14 +747,25 @@ export const POSPage: React.FC = () => {
           {/* Cart Items List */}
           <div className="flex-1 overflow-y-auto p-3.5 sm:p-4 flex flex-col gap-3">
             {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300">
-                  <ShoppingBag className="w-6 h-6" />
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 space-y-2.5">
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300">
+                  <ShoppingBag className="w-7 h-7" />
                 </div>
-                <p className="font-bold text-slate-700 text-xs">Keranjang Kosong</p>
-                <p className="text-[11px] text-slate-400 max-w-[180px]">
-                  Pilih produk dari katalog atau scan barcode untuk menambahkan.
-                </p>
+                <div>
+                  <p className="font-bold text-slate-700 text-xs sm:text-sm">Keranjang Masih Kosong</p>
+                  <p className="text-[11px] text-slate-400 max-w-[200px] mt-0.5">
+                    Klik produk di katalog atau tekan tombol <strong>Scan Barcode</strong> di atas.
+                  </p>
+                </div>
+                {savedTransactions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSavedTransactionsOpen(true)}
+                    className="mt-2 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-200 transition cursor-pointer"
+                  >
+                    Buka {savedTransactions.length} Transaksi Tersimpan
+                  </button>
+                )}
               </div>
             ) : (
               cart.map(({ product, quantity }) => {
@@ -675,10 +830,10 @@ export const POSPage: React.FC = () => {
             )}
           </div>
 
-          {/* Cart Footer: Summary & Confirm Button */}
-          <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200 space-y-2 shrink-0">
+          {/* Cart Footer: Summary & High-Contrast Task Buttons (Bayar, Simpan, Batal) */}
+          <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200 space-y-2.5 shrink-0">
             <div className="flex justify-between text-xs text-slate-500">
-              <span>Subtotal</span>
+              <span>Subtotal ({cartTotals.totalUnits} unit)</span>
               <span className="font-semibold text-slate-700">
                 {formatRupiah(cartTotals.subtotal)}
               </span>
@@ -694,67 +849,85 @@ export const POSPage: React.FC = () => {
               <span className="text-[#00A876]">{formatRupiah(estimatedTotal)}</span>
             </div>
 
-            {/* Quick Payment Preset Selection Buttons */}
-            <div className="grid grid-cols-2 gap-2 pt-2">
+            {/* Task-Oriented Workflow Action Buttons: Bayar, Simpan Transaksi, Batal */}
+            <div className="space-y-2 pt-1.5">
+              {/* Primary Prominent Bayar Button */}
               <button
                 type="button"
+                id="open-checkout-btn"
                 disabled={cart.length === 0}
                 onClick={() => setIsCheckoutOpen(true)}
-                className="flex items-center justify-center gap-1.5 p-2.5 border border-slate-200 bg-white hover:border-[#00A876] rounded-xl transition text-slate-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full py-3.5 px-4 rounded-xl shadow-lg transition-transform active:scale-95 text-xs sm:text-sm font-black uppercase tracking-wide cursor-pointer flex items-center justify-center gap-2 ${
+                  cart.length > 0
+                    ? 'bg-[#00A876] hover:bg-[#009267] text-white shadow-[#00A876]/30'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                }`}
               >
-                <Banknote className="w-3.5 h-3.5 text-slate-500" />
-                <span className="text-xs font-bold">Tunai</span>
+                <CreditCard className="w-4 h-4" />
+                <span>Bayar Sekarang ({formatRupiah(estimatedTotal)})</span>
               </button>
-              <button
-                type="button"
-                disabled={cart.length === 0}
-                onClick={() => setIsCheckoutOpen(true)}
-                className="flex items-center justify-center gap-1.5 p-2.5 border-2 border-[#00A876] bg-emerald-50 hover:bg-emerald-100 rounded-xl transition text-[#00A876] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <CreditCard className="w-3.5 h-3.5 text-[#00A876]" />
-                <span className="text-xs font-bold">E-Wallet / VA</span>
-              </button>
-            </div>
 
-            {/* Confirm Pay Button */}
-            <button
-              type="button"
-              id="open-checkout-btn"
-              disabled={cart.length === 0}
-              onClick={() => setIsCheckoutOpen(true)}
-              className={`w-full font-bold py-3 rounded-xl shadow-lg transition-transform active:scale-95 text-xs sm:text-sm uppercase tracking-wide cursor-pointer ${
-                cart.length > 0
-                  ? 'bg-[#00A876] hover:bg-[#009267] text-white shadow-[#00A876]/25'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-              }`}
-            >
-              Konfirmasi Bayar
-            </button>
+              {/* Secondary Task Buttons: Simpan Transaksi & Batal */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  id="hold-transaction-btn"
+                  disabled={cart.length === 0}
+                  onClick={handleHoldCurrentTransaction}
+                  className="py-2.5 px-3 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed text-indigo-900 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  title="Simpan sementara / Parkir pesanan"
+                >
+                  <BookmarkCheck className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Simpan Transaksi</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="cancel-transaction-btn"
+                  disabled={cart.length === 0}
+                  onClick={handleClearCart}
+                  className="py-2.5 px-3 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed text-rose-700 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  title="Batalkan transaksi saat ini"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Batal</span>
+                </button>
+              </div>
+            </div>
           </div>
         </aside>
       </div>
 
       {/* Mobile Floating Cart Summary Drawer Trigger */}
       {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-14 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 shadow-2xl flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-slate-400 font-bold uppercase">{cartTotals.totalUnits} Item Terpilih</span>
-            <span className="text-base font-black text-[#00A876]">{formatRupiah(estimatedTotal)}</span>
+        <div className="lg:hidden fixed bottom-14 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 shadow-2xl flex items-center justify-between gap-2">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] text-slate-400 font-bold uppercase truncate">{cartTotals.totalUnits} Item Terpilih</span>
+            <span className="text-base font-black text-[#00A876] truncate">{formatRupiah(estimatedTotal)}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleHoldCurrentTransaction}
+              className="p-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-bold cursor-pointer"
+              title="Simpan Transaksi"
+            >
+              <BookmarkCheck className="w-4 h-4" />
+            </button>
             <button
               type="button"
               onClick={() => setIsMobileCartOpen(true)}
-              className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold cursor-pointer"
+              className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold cursor-pointer"
             >
               Detail
             </button>
             <button
               type="button"
               onClick={() => setIsCheckoutOpen(true)}
-              className="px-4 py-2.5 bg-[#00A876] hover:bg-[#009267] text-white rounded-xl text-xs font-bold shadow-md shadow-[#00A876]/30 cursor-pointer"
+              className="px-4 py-2.5 bg-[#00A876] hover:bg-[#009267] text-white rounded-xl text-xs font-black shadow-md shadow-[#00A876]/30 cursor-pointer flex items-center gap-1"
             >
-              Bayar Sekarang
+              <span>Bayar</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -779,14 +952,13 @@ export const POSPage: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {cart.map(({ product, quantity }) => (
-                <div key={product.id} className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                  <div className="min-w-0 flex-1">
+                <div key={product.id} className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="flex-1 min-w-0 pr-2">
                     <p className="text-xs font-bold text-slate-900 truncate">{product.name}</p>
-                    <p className="text-[11px] text-slate-500">{formatRupiah(product.price)} x {quantity}</p>
+                    <p className="text-[10px] text-slate-500">{formatRupiah(product.price)} x {quantity}</p>
                   </div>
-                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
                     <button
-                      type="button"
                       onClick={() => updateCartQty(product.id, quantity - 1)}
                       className="w-6 h-6 rounded-lg bg-white text-slate-700 flex items-center justify-center text-xs"
                     >
@@ -794,9 +966,8 @@ export const POSPage: React.FC = () => {
                     </button>
                     <span className="w-6 text-center text-xs font-bold">{quantity}</span>
                     <button
-                      type="button"
-                      disabled={quantity >= product.stock}
                       onClick={() => updateCartQty(product.id, quantity + 1)}
+                      disabled={quantity >= product.stock}
                       className="w-6 h-6 rounded-lg bg-white text-slate-700 flex items-center justify-center text-xs disabled:opacity-50"
                     >
                       <Plus className="w-3 h-3" />
@@ -811,16 +982,125 @@ export const POSPage: React.FC = () => {
                 <span>Total Bayar</span>
                 <span className="text-[#00A876]">{formatRupiah(estimatedTotal)}</span>
               </div>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleHoldCurrentTransaction();
+                    setIsMobileCartOpen(false);
+                  }}
+                  className="py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-800 font-bold text-xs rounded-xl flex items-center justify-center gap-1"
+                >
+                  <BookmarkCheck className="w-3.5 h-3.5" />
+                  <span>Simpan Transaksi</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleClearCart();
+                    setIsMobileCartOpen(false);
+                  }}
+                  className="py-2.5 bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Batal</span>
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => {
                   setIsMobileCartOpen(false);
                   setIsCheckoutOpen(true);
                 }}
-                className="w-full py-3 bg-[#00A876] hover:bg-[#009267] text-white font-bold text-sm rounded-xl shadow-lg shadow-[#00A876]/25"
+                className="w-full py-3 bg-[#00A876] hover:bg-[#009267] text-white font-black text-sm rounded-xl shadow-lg shadow-[#00A876]/25"
               >
-                Lanjut ke Pembayaran
+                Bayar Sekarang ({formatRupiah(estimatedTotal)})
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Saved / Held Transactions Modal */}
+      {isSavedTransactionsOpen && (
+        <div
+          id="saved-transactions-backdrop"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsSavedTransactionsOpen(false);
+          }}
+        >
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 flex flex-col max-h-[85vh]">
+            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookmarkCheck className="w-5 h-5 text-indigo-400" />
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base">Daftar Transaksi Tersimpan</h3>
+                  <p className="text-[11px] text-slate-400">{savedTransactions.length} transaksi dalam antrean</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSavedTransactionsOpen(false)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 flex-1 overflow-y-auto space-y-2.5">
+              {savedTransactions.length === 0 ? (
+                <div className="py-10 text-center text-slate-400 space-y-2">
+                  <BookmarkCheck className="w-10 h-10 text-slate-300 mx-auto" />
+                  <p className="font-bold text-slate-700 text-xs sm:text-sm">Belum Ada Transaksi Tersimpan</p>
+                  <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                    Gunakan tombol "Simpan Transaksi" saat ada pelanggan yang ingin menunda sementara pesanannya.
+                  </p>
+                </div>
+              ) : (
+                savedTransactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    onClick={() => handleRestoreTransaction(tx)}
+                    className="p-3.5 rounded-2xl border border-indigo-100 bg-indigo-50/60 hover:bg-indigo-100/80 transition flex items-center justify-between gap-3 cursor-pointer group"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-xs text-indigo-950">
+                          {tx.note || 'Transaksi Tersimpan'}
+                        </span>
+                        <span className="text-[10px] text-indigo-700 bg-indigo-200/70 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {tx.timeLabel}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 truncate mt-1">
+                        {tx.items.map((i) => `${i.product.name} (x${i.quantity})`).join(', ')}
+                      </p>
+                      <p className="text-xs font-black text-[#00A876] mt-0.5">
+                        {formatRupiah(tx.subtotal)} ({tx.totalUnits} unit)
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteSavedTransaction(tx.id, e)}
+                        className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition cursor-pointer"
+                        title="Hapus Transaksi"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 bg-indigo-600 group-hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Buka</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -831,6 +1111,7 @@ export const POSPage: React.FC = () => {
         isOpen={isBarcodeScannerOpen}
         onClose={() => setIsBarcodeScannerOpen(false)}
         onScan={handleBarcodeScanned}
+        onHoldTransaction={handleHoldCurrentTransaction}
         onProceedToCheckout={() => {
           setIsBarcodeScannerOpen(false);
           setIsCheckoutOpen(true);

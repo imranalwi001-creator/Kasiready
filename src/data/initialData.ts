@@ -1520,6 +1520,19 @@ export const INITIAL_SETTINGS: StoreSettings = {
     autoDetectSimulation: true,
     autoDetectDelaySeconds: 8,
   },
+  ppobGateway: {
+    mode: 'auto_api',
+    provider: 'digiflazz',
+    username: 'averion_pos_official',
+    apiKey: 'dev-df-8921829048102948',
+    webhookSecret: 'whsec_ppob_live_99210284',
+    isDevelopmentMode: true,
+    autoCheckBalance: true,
+    serverBalance: 2350000,
+    lastBalanceSync: new Date().toISOString(),
+    allowManualFallback: true,
+    ipWhitelistNote: 'IP Server Terverifikasi (103.144.xxx.xxx)',
+  },
 };
 
 // Realistic initial transactions

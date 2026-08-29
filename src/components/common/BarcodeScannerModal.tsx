@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useStore } from '../../context/StoreContext';
-import { Product } from '../../types';
+import { Product, CartItem } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import { playScanBeep } from '../../utils/soundNotifications';
 import {
@@ -24,6 +24,7 @@ import {
   PlusCircle,
   Keyboard,
   Check,
+  BookmarkCheck,
 } from 'lucide-react';
 
 export type ScannerUsageMode = 'pos' | 'product-input';
@@ -34,6 +35,7 @@ interface BarcodeScannerModalProps {
   onScan?: (skuOrCode: string) => void;
   onScanSuccess?: (skuOrCode: string) => void;
   onProceedToCheckout?: () => void;
+  onHoldTransaction?: () => void;
   onAddNewProductWithBarcode?: (barcode: string) => void;
   mode?: ScannerUsageMode;
   modalTitle?: string;
@@ -72,6 +74,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   onScan,
   onScanSuccess,
   onProceedToCheckout,
+  onHoldTransaction,
   onAddNewProductWithBarcode,
   mode = 'pos',
   modalTitle,
@@ -86,6 +89,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     addToCart,
     updateCartQty,
     removeFromCart,
+    clearCart,
   } = useStore();
 
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -412,6 +416,26 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     }
   };
 
+  // Cancel / Clear Cart
+  const handleCancelCart = () => {
+    if (cart.length > 0) {
+      if (window.confirm('Batalkan transaksi saat ini dan kosongkan keranjang?')) {
+        clearCart();
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  };
+
+  // Simpan / Park Transaksi
+  const handleHold = () => {
+    if (onHoldTransaction) {
+      onHoldTransaction();
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   const defaultTitle =
@@ -431,32 +455,26 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150 my-auto flex flex-col max-h-[96vh]"
       >
         {/* Top Header: Clean, High-Contrast POS Header */}
-        <div className="bg-slate-900 text-white px-4 sm:px-5 py-3.5 flex items-center justify-between shrink-0">
+        <div className="bg-slate-900 text-white px-4 sm:px-5 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-xs">
+            <div className="w-8 h-8 rounded-xl bg-[#00A876] flex items-center justify-center text-white shrink-0 shadow-xs">
               {mode === 'pos' ? (
-                <ShoppingBag className="w-5 h-5" />
+                <ShoppingBag className="w-4 h-4" />
               ) : (
-                <Barcode className="w-5 h-5" />
+                <Barcode className="w-4 h-4" />
               )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-sm sm:text-base truncate">
+                <h3 className="font-black text-sm truncate">
                   {headerTitle}
                 </h3>
                 {mode === 'pos' && cartTotals.itemCount > 0 && (
-                  <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 shrink-0">
-                    {cartTotals.totalUnits} Item ({formatRupiah(cartTotals.subtotal)})
+                  <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-[#00A876] text-white shrink-0">
+                    {cartTotals.totalUnits} Unit • {formatRupiah(cartTotals.subtotal)}
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-400 truncate">
-                {modalSubtitle ||
-                  (mode === 'pos'
-                    ? 'Arahkan kamera ke barcode kemasan barang belanjaan'
-                    : 'Arahkan kamera ke barcode kemasan barang untuk mengisi SKU')}
-              </p>
             </div>
           </div>
 
@@ -471,7 +489,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     ? 'bg-amber-400 border-amber-500 text-slate-950 shadow-md shadow-amber-200'
                     : 'border-slate-700 bg-slate-800 text-slate-300 hover:text-white'
                 }`}
-                title="Lampu Senter / Flash"
+                title="Senter"
               >
                 <Flashlight className="w-4 h-4" />
               </button>
@@ -481,7 +499,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               type="button"
               onClick={handleFlipCamera}
               className="p-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
-              title="Putar Kamera Depan / Belakang"
+              title="Putar Kamera"
             >
               <FlipHorizontal className="w-4 h-4" />
             </button>
@@ -491,10 +509,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               onClick={() => setSoundEnabled(!soundEnabled)}
               className={`p-2 rounded-xl border transition cursor-pointer ${
                 soundEnabled
-                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                  ? 'border-emerald-600 bg-emerald-600 text-white'
                   : 'border-slate-700 bg-slate-800 text-slate-400'
               }`}
-              title="Bunyi Beep Scanner"
+              title="Suara Beep"
             >
               {soundEnabled ? (
                 <Volume2 className="w-4 h-4" />
@@ -507,7 +525,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               onClick={onClose}
               id="btn-close-scanner-modal"
               className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition cursor-pointer"
-              title="Tutup Scanner"
+              title="Tutup"
             >
               <X className="w-5 h-5" />
             </button>
@@ -525,13 +543,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
           {/* Loading Camera */}
           {isCameraStarting && (
             <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-2.5 z-20">
-              <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" />
+              <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin" />
               <p className="text-xs font-bold text-slate-200">
-                Mengaktifkan Kamera Pemindai...
+                Mengaktifkan Pemindai Barcode...
               </p>
-              <span className="text-[10px] text-slate-400">
-                Posisikan barcode di dalam kotak garis laser
-              </span>
             </div>
           )}
 
@@ -542,14 +557,14 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 className={`relative w-64 sm:w-72 h-32 sm:h-36 border-2 rounded-2xl flex items-center justify-center transition-all ${
                   scanSuccessPulse
                     ? 'border-emerald-400 bg-emerald-500/20 shadow-[0_0_35px_rgba(52,211,153,0.7)]'
-                    : 'border-indigo-400/90 bg-indigo-500/5 shadow-2xl'
+                    : 'border-emerald-400/90 bg-emerald-500/5 shadow-2xl'
                 }`}
               >
                 {/* Corner Marks */}
-                <div className="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-indigo-400 -mt-1 -ml-1 rounded-tl-xl" />
-                <div className="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-indigo-400 -mt-1 -mr-1 rounded-tr-xl" />
-                <div className="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-indigo-400 -mb-1 -ml-1 rounded-bl-xl" />
-                <div className="absolute bottom-0 right-0 w-5 h-5 border-b-4 border-r-4 border-indigo-400 -mb-1 -mr-1 rounded-br-lg" />
+                <div className="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-emerald-400 -mt-1 -ml-1 rounded-tl-xl" />
+                <div className="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-emerald-400 -mt-1 -mr-1 rounded-tr-xl" />
+                <div className="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-emerald-400 -mb-1 -ml-1 rounded-bl-xl" />
+                <div className="absolute bottom-0 right-0 w-5 h-5 border-b-4 border-r-4 border-emerald-400 -mb-1 -mr-1 rounded-br-lg" />
 
                 {/* Laser Line */}
                 <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-rose-500 to-transparent shadow-[0_0_14px_#f43f5e] animate-pulse" />
@@ -562,10 +577,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             <div
               className={`absolute top-2 inset-x-3 p-2.5 rounded-2xl text-xs font-bold shadow-xl animate-in slide-in-from-top-2 duration-150 flex items-center justify-between gap-2 z-20 ${
                 lastMatchedProduct
-                  ? 'bg-emerald-600 text-white'
+                  ? 'bg-[#00A876] text-white'
                   : isNotFoundWarning
                   ? 'bg-amber-600 text-white'
-                  : 'bg-indigo-700 text-white'
+                  : 'bg-slate-900 text-white'
               }`}
             >
               <div className="flex items-center gap-2 min-w-0">
@@ -575,19 +590,16 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                   <AlertTriangle className="w-4 h-4 text-amber-200 shrink-0" />
                 )}
                 <div className="min-w-0">
-                  <span className="font-mono text-xs opacity-90">
+                  <span className="font-mono text-xs opacity-90 block">
                     {lastDetectedCode}
                   </span>
                   <p className="text-[11px] truncate font-semibold">
                     {lastMatchedProduct
                       ? `${lastMatchedProduct.name} (${formatRupiah(lastMatchedProduct.price)})`
-                      : 'Barcode belum terdaftar di toko'}
+                      : 'Barcode belum terdaftar di cabang ini'}
                   </p>
                 </div>
               </div>
-              <span className="text-[10px] font-black bg-black/25 px-2 py-0.5 rounded-lg shrink-0">
-                {mode === 'pos' ? 'Kasir' : 'Input SKU'}
-              </span>
             </div>
           )}
 
@@ -607,7 +619,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 <button
                   type="button"
                   onClick={startCamera}
-                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Coba Lagi</span>
@@ -636,12 +648,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               value={manualBarcode}
               onChange={(e) => setManualBarcode(e.target.value)}
               placeholder="Ketik barcode / SKU barang..."
-              className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+              className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900"
               autoFocus
             />
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer"
             >
               Cari
             </button>
@@ -656,13 +668,13 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         )}
 
         {/* ========================================================================= */}
-        {/* POS MODE: Live Item Card + Quantity Controls + Immediate Bayar Button   */}
+        {/* POS MODE: High-Contrast Task-Oriented Actions: Bayar, Simpan, Batal       */}
         {/* ========================================================================= */}
         {mode === 'pos' && (
           <div className="p-3 sm:p-4 space-y-3 bg-white flex-1 overflow-y-auto">
             {/* Scanned Item Details with Stepper */}
             {lastMatchedProduct ? (
-              <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-2.5 animate-in fade-in zoom-in-95">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <img
                     src={lastMatchedProduct.image}
@@ -679,7 +691,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                       </span>
                       <span>&bull;</span>
                       <span className="text-slate-500">
-                        Sisa Stok: {lastMatchedProduct.stock}
+                        Stok: {lastMatchedProduct.stock}
                       </span>
                     </div>
                   </div>
@@ -710,7 +722,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                         ? lastCartItem.quantity >= lastMatchedProduct.stock
                         : lastMatchedProduct.stock <= 1
                     }
-                    className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white flex items-center justify-center font-bold transition cursor-pointer active:scale-95 shadow-2xs"
+                    className="w-7 h-7 rounded-lg bg-[#00A876] hover:bg-[#009267] disabled:opacity-40 text-white flex items-center justify-center font-bold transition cursor-pointer active:scale-95 shadow-2xs"
                     title="Tambah Qty"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -744,70 +756,74 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                   </button>
                 )}
               </div>
-            ) : (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-600 flex items-center justify-center gap-2">
-                <Camera className="w-4 h-4 text-indigo-600 shrink-0" />
-                <span>
-                  Arahkan barcode kemasan barang ke area kotak pemindai di atas.
+            ) : null}
+
+            {/* Total Summary Row */}
+            <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xs">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
+                  Total Belanja
                 </span>
+                <p className="text-base sm:text-lg font-black text-emerald-400">
+                  {formatRupiah(cartTotals.subtotal)}
+                </p>
               </div>
-            )}
+              <span className="text-xs font-extrabold text-white bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700">
+                {cartTotals.itemCount} Jenis ({cartTotals.totalUnits} unit)
+              </span>
+            </div>
 
-            {/* Bottom Checkout & Cart Action Bar */}
-            <div className="pt-2 border-t border-slate-100 flex flex-col gap-2.5">
-              {/* Total & Item Info */}
-              <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xs">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
-                    Total Belanja Kasir
-                  </span>
-                  <p className="text-base sm:text-lg font-black text-emerald-400">
-                    {formatRupiah(cartTotals.subtotal)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-extrabold text-white bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700">
-                    {cartTotals.itemCount} Jenis ({cartTotals.totalUnits} pcs)
-                  </span>
-                </div>
-              </div>
+            {/* Task-Oriented High-Contrast Workflow Buttons: Bayar, Simpan Transaksi, Batal */}
+            <div className="space-y-2 pt-1">
+              {/* Primary Prominent Bayar Button */}
+              <button
+                type="button"
+                id="btn-scanner-pay-now"
+                disabled={cartTotals.itemCount === 0}
+                onClick={handleProceedToPayment}
+                className="w-full py-3.5 px-4 rounded-2xl bg-[#00A876] hover:bg-[#009267] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#00A876]/30 transition cursor-pointer active:scale-98"
+              >
+                <CreditCard className="w-5 h-5" />
+                <span>Bayar Sekarang ({formatRupiah(cartTotals.subtotal)})</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
 
-              {/* Primary Buttons: Bayar Sekarang & Lanjut Scan */}
+              {/* Secondary Actions: Simpan Transaksi & Batal */}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="py-3 px-3 rounded-2xl border border-slate-300 hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
+                  id="btn-scanner-hold"
+                  disabled={cartTotals.itemCount === 0}
+                  onClick={handleHold}
+                  className="py-2.5 px-3 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40"
                 >
-                  <ShoppingBag className="w-4 h-4 text-slate-600" />
-                  <span>Lihat Keranjang</span>
+                  <BookmarkCheck className="w-4 h-4 text-indigo-600" />
+                  <span>Simpan Transaksi</span>
                 </button>
 
                 <button
                   type="button"
-                  id="btn-scanner-pay-now"
-                  disabled={cartTotals.itemCount === 0}
-                  onClick={handleProceedToPayment}
-                  className="py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/30 transition cursor-pointer active:scale-98"
+                  id="btn-scanner-cancel"
+                  onClick={handleCancelCart}
+                  className="py-2.5 px-3 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                 >
-                  <CreditCard className="w-4 h-4" />
-                  <span>Bayar ({formatRupiah(cartTotals.subtotal)})</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4 text-rose-500" />
+                  <span>{cart.length > 0 ? 'Batal (Reset)' : 'Tutup'}</span>
                 </button>
               </div>
-
-              {/* Collapsed manual input helper button */}
-              {!showManualInput && (
-                <button
-                  type="button"
-                  onClick={() => setShowManualInput(true)}
-                  className="text-[11px] text-slate-500 hover:text-indigo-600 font-semibold text-center flex items-center justify-center gap-1 cursor-pointer pt-1"
-                >
-                  <Keyboard className="w-3.5 h-3.5" />
-                  <span>Barcode kemasan rusak? Klik di sini untuk ketik manual</span>
-                </button>
-              )}
             </div>
+
+            {/* Quick manual keyboard fallback */}
+            {!showManualInput && (
+              <button
+                type="button"
+                onClick={() => setShowManualInput(true)}
+                className="text-[11px] text-slate-400 hover:text-slate-700 font-semibold text-center flex items-center justify-center gap-1 cursor-pointer pt-1 mx-auto"
+              >
+                <Keyboard className="w-3.5 h-3.5" />
+                <span>Ketik barcode manual</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -815,25 +831,24 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         {/* PRODUCT INPUT MODE: Focused Barcode Capture with Confirm & Use Button     */}
         {/* ========================================================================= */}
         {mode === 'product-input' && (
-          <div className="p-4 space-y-4 bg-white flex-1 overflow-y-auto">
+          <div className="p-4 space-y-3 bg-white flex-1 overflow-y-auto">
             {lastDetectedCode ? (
-              <div className="p-4 bg-indigo-50/80 border-2 border-indigo-200 rounded-2xl space-y-3 text-center animate-in zoom-in-95">
-                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center mx-auto shadow-md">
+              <div className="p-4 bg-emerald-50 border-2 border-emerald-200 rounded-2xl space-y-3 text-center animate-in zoom-in-95">
+                <div className="w-10 h-10 rounded-full bg-[#00A876] text-white flex items-center justify-center mx-auto shadow-md">
                   <Check className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                    Kode Barcode Terdeteksi
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Barcode Terdeteksi
                   </span>
-                  <p className="text-xl sm:text-2xl font-mono font-black text-indigo-900 tracking-wider">
+                  <p className="text-xl sm:text-2xl font-mono font-black text-slate-900 tracking-wider">
                     {lastDetectedCode}
                   </p>
                 </div>
 
                 {lastMatchedProduct && (
-                  <p className="text-xs text-amber-700 bg-amber-100/80 px-3 py-1.5 rounded-xl font-semibold inline-block">
-                    ⚠️ Sudah dipakai produk:{' '}
-                    <strong>{lastMatchedProduct.name}</strong>
+                  <p className="text-xs text-amber-800 bg-amber-100 px-3 py-1.5 rounded-xl font-semibold inline-block">
+                    Sudah terdaftar: <strong>{lastMatchedProduct.name}</strong>
                   </p>
                 )}
 
@@ -855,7 +870,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                       if (onScan) onScan(lastDetectedCode);
                       onClose();
                     }}
-                    className="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-[#00A876] hover:bg-[#009267] text-white font-extrabold text-xs shadow-md shadow-[#00A876]/20 transition cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Gunakan Barcode Ini</span>
@@ -866,20 +881,17 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-2">
                 <Barcode className="w-8 h-8 text-slate-400 mx-auto" />
                 <p className="text-xs font-bold text-slate-700">
-                  Arahkan kamera HP ke barcode pada bungkus produk / rokok / snack
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  Kode barcode otomatis terisi ke form tambah barang.
+                  Arahkan kamera ke barcode kemasan barang
                 </p>
 
                 {!showManualInput && (
                   <button
                     type="button"
                     onClick={() => setShowManualInput(true)}
-                    className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                    className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-[#00A876] hover:underline cursor-pointer"
                   >
                     <Keyboard className="w-3.5 h-3.5" />
-                    <span>Ketik Kode Barcode Manual</span>
+                    <span>Ketik Barcode Manual</span>
                   </button>
                 )}
               </div>
@@ -890,3 +902,4 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     </div>
   );
 };
+

@@ -1036,17 +1036,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               type="submit"
               id="confirm-payment-btn"
               disabled={isProcessing || isCashInsufficient}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#00A876] hover:bg-[#009267] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#00A876]/25 transition disabled:opacity-50 active:scale-95 cursor-pointer"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#00A876] hover:bg-[#009267] text-white text-xs sm:text-sm font-black shadow-lg shadow-[#00A876]/30 transition disabled:opacity-50 active:scale-95 cursor-pointer"
             >
               {isProcessing ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Memproses...</span>
+                  <span>Memproses Pembayaran...</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Bayar {formatRupiah(finalTotal)}</span>
+                  <span>Bayar Sekarang ({formatRupiah(finalTotal)})</span>
                 </>
               )}
             </button>

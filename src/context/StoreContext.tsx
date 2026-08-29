@@ -18,6 +18,10 @@ import {
   CashExpense,
   CashShift,
   DailyCashSummary,
+  DigitalCategory,
+  DigitalProduct,
+  DigitalTransaction,
+  DigitalInquiryData,
 } from '../types';
 import {
   INITIAL_CATEGORIES,
@@ -30,7 +34,17 @@ import {
   INITIAL_CASH_SHIFTS,
   INITIAL_CASH_EXPENSES,
 } from '../data/initialData';
+import {
+  INITIAL_DIGITAL_PRODUCTS,
+  INITIAL_DIGITAL_TRANSACTIONS,
+  INITIAL_DEPOSIT_BALANCE,
+} from '../data/initialDigitalData';
 import { generateInvoiceNumber, formatRupiah } from '../utils/formatters';
+import {
+  DEFAULT_PPOB_SETTINGS,
+  executePPOBTransaction,
+  fetchPPOBServerBalance,
+} from '../services/ppobService';
 
 interface CheckoutPayload {
   paymentMethod: PaymentMethod;
@@ -68,7 +82,7 @@ interface StoreContextType {
   activeCashier: string;
   setActiveCashier: (name: string) => void;
   settings: StoreSettings;
-  setSettings: (settings: StoreSettings) => void;
+  setSettings: (settings: StoreSettings | ((prev: StoreSettings) => StoreSettings)) => void;
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
@@ -138,11 +152,31 @@ interface StoreContextType {
   updateCartQty: (productId: string, quantity: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
+  loadCart: (items: CartItem[]) => void;
   cartTotals: {
     subtotal: number;
     itemCount: number;
     totalUnits: number;
   };
+
+  // Digital Products & PPOB
+  digitalProducts: DigitalProduct[];
+  digitalTransactions: DigitalTransaction[];
+  digitalDepositBalance: number;
+  topUpDepositBalance: (amount: number, note?: string) => void;
+  syncPPOBServerBalance: () => Promise<number>;
+  processDigitalTransaction: (payload: {
+    productId: string;
+    targetNumber: string;
+    customerName?: string;
+    paymentMethod: PaymentMethod;
+    customSellingPrice?: number;
+    inquiryData?: DigitalInquiryData;
+    manualSN?: string;
+    forceManualFallback?: boolean;
+    notes?: string;
+  }) => Promise<DigitalTransaction>;
+  updateDigitalProductPrice: (productId: string, newSellingPrice: number) => void;
 
   // Database Utilities
   resetToDefault: () => void;
@@ -173,6 +207,9 @@ const STORAGE_KEYS = {
   CASHIER: 'pos_active_cashier_v2',
   CASH_SHIFTS: 'pos_cash_shifts_v2',
   CASH_EXPENSES: 'pos_cash_expenses_v2',
+  DIGITAL_PRODUCTS: 'pos_digital_products_v2',
+  DIGITAL_TRANSACTIONS: 'pos_digital_transactions_v2',
+  DIGITAL_DEPOSIT: 'pos_digital_deposit_v2',
 };
 
 function calculateCustomerTier(totalSpent: number): CustomerTier {
@@ -368,6 +405,34 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return stored ? JSON.parse(stored) : INITIAL_CASH_EXPENSES;
     } catch {
       return INITIAL_CASH_EXPENSES;
+    }
+  });
+
+  // Digital Products & PPOB State
+  const [digitalProducts, setDigitalProducts] = useState<DigitalProduct[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.DIGITAL_PRODUCTS);
+      return stored ? JSON.parse(stored) : INITIAL_DIGITAL_PRODUCTS;
+    } catch {
+      return INITIAL_DIGITAL_PRODUCTS;
+    }
+  });
+
+  const [digitalTransactions, setDigitalTransactions] = useState<DigitalTransaction[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.DIGITAL_TRANSACTIONS);
+      return stored ? JSON.parse(stored) : INITIAL_DIGITAL_TRANSACTIONS;
+    } catch {
+      return INITIAL_DIGITAL_TRANSACTIONS;
+    }
+  });
+
+  const [digitalDepositBalance, setDigitalDepositBalance] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.DIGITAL_DEPOSIT);
+      return stored ? JSON.parse(stored) : INITIAL_DEPOSIT_BALANCE;
+    } catch {
+      return INITIAL_DEPOSIT_BALANCE;
     }
   });
 
@@ -619,6 +684,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem(STORAGE_KEYS.CASH_EXPENSES, JSON.stringify(cashExpenses));
   }, [cashExpenses]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.DIGITAL_PRODUCTS, JSON.stringify(digitalProducts));
+  }, [digitalProducts]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.DIGITAL_TRANSACTIONS, JSON.stringify(digitalTransactions));
+  }, [digitalTransactions]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.DIGITAL_DEPOSIT, JSON.stringify(digitalDepositBalance));
+  }, [digitalDepositBalance]);
+
   // Auth Methods
   const login = async (
     identifier: string,
@@ -725,10 +802,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!currentUser) return false;
     if (currentUser.role === 'super_admin') return true;
     if (currentUser.role === 'admin') {
-      return ['dashboard', 'pos', 'inventory', 'customers', 'history', 'reports', 'cash-drawer', 'settings'].includes(tab);
+      return ['dashboard', 'pos', 'digital-products', 'inventory', 'customers', 'history', 'reports', 'cash-drawer', 'settings'].includes(tab);
     }
     if (currentUser.role === 'kasir') {
-      return ['dashboard', 'pos', 'customers', 'history', 'cash-drawer'].includes(tab);
+      return ['dashboard', 'pos', 'digital-products', 'customers', 'history', 'cash-drawer'].includes(tab);
     }
     return false;
   };
@@ -738,8 +815,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem(STORAGE_KEYS.CASHIER, name);
   };
 
-  const setSettings = (newSettings: StoreSettings) => {
-    setSettingsState(newSettings);
+  const setSettings = (newSettingsOrUpdater: StoreSettings | ((prev: StoreSettings) => StoreSettings)) => {
+    setSettingsState(newSettingsOrUpdater);
   };
 
   const setActiveStoreId = (storeId: string) => {
@@ -1008,6 +1085,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearCart = () => {
     setCart([]);
+  };
+
+  const loadCart = (items: CartItem[]) => {
+    setCart(items);
   };
 
   // Checkout with Multi-Store & Loyalty Points Integration
@@ -1584,6 +1665,130 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCashExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
+  // Digital Products & PPOB Methods
+  const topUpDepositBalance = (amount: number, note?: string) => {
+    if (amount <= 0) return;
+    setDigitalDepositBalance((prev) => prev + amount);
+  };
+
+  const updateDigitalProductPrice = (productId: string, newSellingPrice: number) => {
+    setDigitalProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, sellingPrice: newSellingPrice } : p))
+    );
+  };
+
+  const syncPPOBServerBalance = async (): Promise<number> => {
+    const ppobConfig = settings.ppobGateway || DEFAULT_PPOB_SETTINGS;
+    const res = await fetchPPOBServerBalance(ppobConfig);
+    setDigitalDepositBalance(res.balance);
+    setSettings((prev) => ({
+      ...prev,
+      ppobGateway: {
+        ...(prev.ppobGateway || DEFAULT_PPOB_SETTINGS),
+        serverBalance: res.balance,
+        lastBalanceSync: res.timestamp,
+      },
+    }));
+    return res.balance;
+  };
+
+  const processDigitalTransaction = async (payload: {
+    productId: string;
+    targetNumber: string;
+    customerName?: string;
+    paymentMethod: PaymentMethod;
+    customSellingPrice?: number;
+    inquiryData?: DigitalInquiryData;
+    manualSN?: string;
+    forceManualFallback?: boolean;
+    notes?: string;
+  }): Promise<DigitalTransaction> => {
+    const product = digitalProducts.find((p) => p.id === payload.productId);
+    if (!product) {
+      throw new Error('Produk digital tidak ditemukan');
+    }
+
+    const ppobConfig = settings.ppobGateway || DEFAULT_PPOB_SETTINGS;
+    const isManualMode = ppobConfig.mode === 'manual' || !!payload.forceManualFallback;
+
+    const sellingPrice = payload.customSellingPrice !== undefined && payload.customSellingPrice > 0
+      ? payload.customSellingPrice
+      : (product.sellingPrice > 0 ? product.sellingPrice : ((payload.inquiryData?.totalBill || 0) + (product.adminFee || 2500)));
+
+    const adminFee = product.adminFee || (product.category === 'pln' || product.category === 'postpaid' ? 2500 : 0);
+    const costPrice = product.costPrice > 0 ? product.costPrice : (payload.inquiryData?.totalBill || 0);
+    const totalPaid = sellingPrice;
+    const profit = Math.max(0, totalPaid - costPrice);
+
+    // Execute via PPOB Switcher API or Manual fallback
+    const execResult = await executePPOBTransaction({
+      config: {
+        ...ppobConfig,
+        serverBalance: digitalDepositBalance,
+      },
+      product,
+      targetNumber: payload.targetNumber,
+      customerName: payload.customerName,
+      manualSN: payload.manualSN,
+      forceManualFallback: payload.forceManualFallback,
+    });
+
+    const now = new Date();
+    const invoiceNumber = `PPOB-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(Math.floor(100 + Math.random() * 900))}`;
+
+    const newTx: DigitalTransaction = {
+      id: `digi-tx-${Date.now()}`,
+      invoiceNumber,
+      storeId: activeStoreId,
+      category: product.category,
+      provider: product.provider,
+      productId: product.id,
+      productName: product.name,
+      denomination: product.denomination,
+      targetNumber: payload.targetNumber,
+      customerName: payload.customerName || (payload.inquiryData?.subscriberName ? payload.inquiryData.subscriberName : 'Pelanggan Umum'),
+      costPrice,
+      sellingPrice,
+      adminFee,
+      profit,
+      totalPaid,
+      paymentMethod: payload.paymentMethod,
+      status: 'success',
+      serialNumber: execResult.serialNumber,
+      inquiryData: payload.inquiryData,
+      cashierName: currentUser?.name || activeCashier,
+      cashierId: currentUser?.id,
+      processingMode: execResult.mode,
+      apiProvider: execResult.providerName,
+      apiRefId: execResult.refId,
+      apiStatusCode: execResult.responseCode,
+      manualInputReason: isManualMode ? (payload.manualSN ? 'Input manual dari aplikasi agen HP/EDC' : 'Mode manual toko') : undefined,
+      createdAt: now.toISOString(),
+      completedAt: new Date(now.getTime() + 1200).toISOString(),
+      notes: payload.notes || (isManualMode ? 'Transaksi diproses manual kasir' : 'Transaksi sukses via API Gateway'),
+    };
+
+    // Deduct cost price from server deposit balance
+    if (costPrice > 0) {
+      setDigitalDepositBalance((prev) => Math.max(0, prev - costPrice));
+      setSettings((prev) => ({
+        ...prev,
+        ppobGateway: prev.ppobGateway
+          ? {
+              ...prev.ppobGateway,
+              serverBalance: Math.max(0, (prev.ppobGateway.serverBalance || digitalDepositBalance) - costPrice),
+              lastBalanceSync: new Date().toISOString(),
+            }
+          : undefined,
+      }));
+    }
+
+    // Append to transactions history
+    setDigitalTransactions((prev) => [newTx, ...prev]);
+
+    return newTx;
+  };
+
   // Backup & Reset
   const resetToDefault = () => {
     setUsers(INITIAL_USERS);
@@ -1596,6 +1801,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setStockLogs([]);
     setCashShifts(INITIAL_CASH_SHIFTS);
     setCashExpenses(INITIAL_CASH_EXPENSES);
+    setDigitalProducts(INITIAL_DIGITAL_PRODUCTS);
+    setDigitalTransactions(INITIAL_DIGITAL_TRANSACTIONS);
+    setDigitalDepositBalance(INITIAL_DEPOSIT_BALANCE);
     setSettings(INITIAL_SETTINGS);
     setCart([]);
     localStorage.clear();
@@ -1613,6 +1821,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       stockLogs,
       cashShifts,
       cashExpenses,
+      digitalProducts,
+      digitalTransactions,
+      digitalDepositBalance,
       settings,
       exportedAt: new Date().toISOString(),
     };
@@ -1631,6 +1842,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (data.stockLogs && Array.isArray(data.stockLogs)) setStockLogs(data.stockLogs);
       if (data.cashShifts && Array.isArray(data.cashShifts)) setCashShifts(data.cashShifts);
       if (data.cashExpenses && Array.isArray(data.cashExpenses)) setCashExpenses(data.cashExpenses);
+      if (data.digitalProducts && Array.isArray(data.digitalProducts)) setDigitalProducts(data.digitalProducts);
+      if (data.digitalTransactions && Array.isArray(data.digitalTransactions)) setDigitalTransactions(data.digitalTransactions);
+      if (typeof data.digitalDepositBalance === 'number') setDigitalDepositBalance(data.digitalDepositBalance);
       if (data.settings) setSettings(data.settings);
       if (data.activeStoreId) setActiveStoreIdState(data.activeStoreId);
       return true;
@@ -1704,7 +1918,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateCartQty,
         removeFromCart,
         clearCart,
+        loadCart,
         cartTotals,
+        digitalProducts,
+        digitalTransactions,
+        digitalDepositBalance,
+        topUpDepositBalance,
+        syncPPOBServerBalance,
+        processDigitalTransaction,
+        updateDigitalProductPrice,
         theme,
         setTheme,
         toggleTheme,

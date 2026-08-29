@@ -9,6 +9,7 @@ import { SalesHistoryPage } from './components/history/SalesHistoryPage';
 import { ReportsDashboard } from './components/reports/ReportsDashboard';
 import { CashDrawerPage } from './components/cash/CashDrawerPage';
 import { SettingsPage } from './components/settings/SettingsPage';
+import { DigitalProductsPage } from './components/digital/DigitalProductsPage';
 import { DocumentationModal } from './components/modals/DocumentationModal';
 import { ActivityLogsModal } from './components/modals/ActivityLogsModal';
 import { LicenseModal } from './components/modals/LicenseModal';
@@ -39,6 +40,7 @@ import {
   Building2,
   AlertTriangle,
   Sparkles,
+  Zap,
   ExternalLink,
   Menu,
   X,
@@ -162,6 +164,14 @@ const MainAppContent: React.FC = () => {
       allowed: canAccessTab('pos'),
     },
     {
+      id: 'digital-products' as TabType,
+      label: 'Produk Digital (PPOB)',
+      icon: Zap,
+      badge: 'PPOB',
+      badgeColor: 'bg-emerald-500 text-white font-bold',
+      allowed: canAccessTab('digital-products'),
+    },
+    {
       id: 'dashboard' as TabType,
       label: 'Dashboard',
       icon: LayoutGrid,
@@ -205,6 +215,8 @@ const MainAppContent: React.FC = () => {
     switch (activeTab) {
       case 'pos':
         return 'CANVAS (POINT OF SALE - KASIR)';
+      case 'digital-products':
+        return 'PRODUK DIGITAL & PPOB (PULSA, DATA, PLN, E-WALLET)';
       case 'dashboard':
         return 'DASHBOARD';
       case 'customers':
@@ -884,6 +896,7 @@ const MainAppContent: React.FC = () => {
           )}
           {activeTab === 'customers' && canAccessTab('customers') && <CustomersPage />}
           {activeTab === 'pos' && <POSPage />}
+          {activeTab === 'digital-products' && canAccessTab('digital-products') && <DigitalProductsPage />}
           {activeTab === 'inventory' && canAccessTab('inventory') && (
             <InventoryPage
               initialRestockProductId={quickRestockId}

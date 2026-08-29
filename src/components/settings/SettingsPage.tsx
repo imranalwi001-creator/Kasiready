@@ -53,6 +53,12 @@ import {
 } from 'lucide-react';
 import { triggerPaymentSuccessNotification } from '../../utils/soundNotifications';
 import { formatRupiah } from '../../utils/formatters';
+import {
+  testPPOBConnection,
+  fetchPPOBServerBalance,
+  DEFAULT_PPOB_SETTINGS,
+  PPOBDiagnosticResult,
+} from '../../services/ppobService';
 
 export const SettingsPage: React.FC = () => {
   const {
@@ -73,17 +79,32 @@ export const SettingsPage: React.FC = () => {
     theme,
     setTheme,
     toggleTheme,
+    digitalDepositBalance,
+    syncPPOBServerBalance,
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<
-    'brand' | 'gateway' | 'audio' | 'whatsapp' | 'printer' | 'users' | 'store' | 'general' | 'database'
+    'brand' | 'gateway' | 'ppob' | 'audio' | 'whatsapp' | 'printer' | 'users' | 'store' | 'general' | 'database'
   >('brand');
 
   // Form State initialized with settings
-  const [formData, setFormData] = useState({ ...settings });
+  const [formData, setFormData] = useState({
+    ...settings,
+    ppobGateway: settings.ppobGateway || DEFAULT_PPOB_SETTINGS,
+  });
   const [cashierInput, setCashierInput] = useState(activeCashier);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+
+  // PPOB API Test State
+  const [testPPOBStatus, setTestPPOBStatus] = useState<{
+    status: 'testing' | 'success' | 'error';
+    message: string;
+    data?: PPOBDiagnosticResult;
+  } | null>(null);
+  const [isSyncingPPOBBalance, setIsSyncingPPOBBalance] = useState(false);
+  const [showPPOBApiKeyPlain, setShowPPOBApiKeyPlain] = useState(false);
+  const [copiedPPOBWebhook, setCopiedPPOBWebhook] = useState(false);
 
   // Gateway Simulation Test State
   const [testGatewayStatus, setTestGatewayStatus] = useState<{
@@ -223,6 +244,49 @@ export const SettingsPage: React.FC = () => {
     }, 900);
   };
 
+  const handleTestPPOB = async () => {
+    const ppobConfig = formData.ppobGateway || DEFAULT_PPOB_SETTINGS;
+    setTestPPOBStatus({
+      status: 'testing',
+      message: 'Menghubungi server PPOB Switcher & melakukan handshake otentikasi API...',
+    });
+
+    try {
+      const diag = await testPPOBConnection(ppobConfig);
+      setTestPPOBStatus({
+        status: diag.success ? 'success' : 'error',
+        message: diag.authMessage,
+        data: diag,
+      });
+      setTimeout(() => {
+        setTestPPOBStatus(null);
+      }, 7000);
+    } catch (err: any) {
+      setTestPPOBStatus({
+        status: 'error',
+        message: err.message || 'Gagal menghubungi server PPOB Switcher.',
+      });
+    }
+  };
+
+  const handleSyncPPOBBalance = async () => {
+    setIsSyncingPPOBBalance(true);
+    try {
+      const ppobConfig = formData.ppobGateway || DEFAULT_PPOB_SETTINGS;
+      const res = await fetchPPOBServerBalance(ppobConfig);
+      setFormData((prev) => ({
+        ...prev,
+        ppobGateway: {
+          ...(prev.ppobGateway || DEFAULT_PPOB_SETTINGS),
+          serverBalance: res.balance,
+          lastBalanceSync: res.timestamp,
+        },
+      }));
+    } finally {
+      setIsSyncingPPOBBalance(false);
+    }
+  };
+
   const handleTestPrint = () => {
     setTestPrinterSuccess(true);
     setTimeout(() => setTestPrinterSuccess(false), 3000);
@@ -326,6 +390,7 @@ export const SettingsPage: React.FC = () => {
   const navTabs = [
     { id: 'brand', label: 'Logo & Tema Tampilan', icon: Palette },
     { id: 'gateway', label: 'Metode Pembayaran & QRIS', icon: CreditCard },
+    { id: 'ppob', label: 'Integrasi PPOB API (DigiFlazz)', icon: Zap },
     { id: 'audio', label: 'Suara & Soundbox', icon: Volume2 },
     { id: 'printer', label: 'Koneksi Printer', icon: Printer },
     { id: 'whatsapp', label: 'Gateway WhatsApp', icon: MessageSquare },
@@ -1388,6 +1453,472 @@ export const SettingsPage: React.FC = () => {
                         />
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 1.5 INTEGRASI PPOB API (DIGIFLAZZ & MULTI-PROVIDER) */}
+            {activeTab === 'ppob' && (
+              <div className="space-y-6">
+                {/* Header Banner */}
+                <div className="flex items-center gap-3.5 p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
+                  <div className="w-10 h-10 rounded-xl bg-[#00A876] text-white flex items-center justify-center shadow-sm shrink-0">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      Integrasi API Gateway PPOB &amp; Server Pulsa
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-[#00A876] text-white">
+                        Dual Mode
+                      </span>
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Hubungkan kasir secara langsung dengan API DigiFlazz / Ayoconnect untuk transaksi pulsa, token PLN, e-wallet otomatis, atau gunakan mode manual fallback.
+                    </p>
+                  </div>
+                </div>
+
+                {/* DUAL MODE SELECTOR CARDS */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#00A876]" />
+                      Pilih Arsitektur Pemrosesan PPOB
+                    </label>
+                    <span className="text-[11px] font-bold text-[#00A876]">
+                      Mode Aktif: {formData.ppobGateway?.mode === 'auto_api' ? '⚡ Auto-API (DigiFlazz)' : '📝 Mode Manual (Aplikasi Agen/EDC)'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Option 1: Auto API */}
+                    <div
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          ppobGateway: {
+                            ...(formData.ppobGateway || DEFAULT_PPOB_SETTINGS),
+                            mode: 'auto_api',
+                          },
+                        })
+                      }
+                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                        formData.ppobGateway?.mode === 'auto_api'
+                          ? 'border-[#00A876] bg-emerald-50/50 dark:bg-emerald-950/20 shadow-md ring-2 ring-[#00A876]/20'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-[#00A876] flex items-center justify-center font-black">
+                            <Zap className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <span>Mode 1: Auto-API Switcher</span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-[#00A876] text-white">
+                                Rekomendasi
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                              Terhubung langsung via API DigiFlazz
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            formData.ppobGateway?.mode === 'auto_api'
+                              ? 'border-[#00A876] bg-[#00A876] text-white'
+                              : 'border-slate-300 dark:border-slate-700'
+                          }`}
+                        >
+                          {formData.ppobGateway?.mode === 'auto_api' && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </div>
+
+                      <ul className="mt-3.5 space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                        <li className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#00A876] shrink-0" />
+                          <span>Kasir <strong>tidak perlu buka HP / aplikasi lain</strong></span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#00A876] shrink-0" />
+                          <span>Proses instan 1–3 detik, saldo server terpotong otomatis</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#00A876] shrink-0" />
+                          <span>Kode Token PLN &amp; SN resmi otomatis masuk ke struk</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Option 2: Manual Mode */}
+                    <div
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          ppobGateway: {
+                            ...(formData.ppobGateway || DEFAULT_PPOB_SETTINGS),
+                            mode: 'manual',
+                          },
+                        })
+                      }
+                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                        formData.ppobGateway?.mode === 'manual'
+                          ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/20 shadow-md ring-2 ring-indigo-500/20'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 flex items-center justify-center font-black">
+                            <Smartphone className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-black text-slate-900 dark:text-white">
+                              Mode 2: Manual Input (Agen HP / EDC)
+                            </div>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                              Tanpa API, cocok untuk aplikasi agen langganan
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            formData.ppobGateway?.mode === 'manual'
+                              ? 'border-indigo-600 bg-indigo-600 text-white'
+                              : 'border-slate-300 dark:border-slate-700'
+                          }`}
+                        >
+                          {formData.ppobGateway?.mode === 'manual' && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </div>
+
+                      <ul className="mt-3.5 space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                        <li className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          <span>Gunakan aplikasi agen di HP (Mitra Shopee, DANA, Payfazz, EDC)</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          <span>Kasir menginput SN/Token di POS untuk cetak struk thermal</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          <span>Pencatatan laba &amp; buku kas toko tetap terintegrasi rapi</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* REAL-TIME SERVER BALANCE STATUS CARD */}
+                <div className="p-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl border border-slate-700 shadow-md">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold tracking-wider uppercase">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Status Saldo Deposit Server PPOB (Live)
+                      </div>
+                      <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-white">
+                        {formatRupiah(formData.ppobGateway?.serverBalance || digitalDepositBalance)}
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Sinkronisasi terakhir: {new Date(formData.ppobGateway?.lastBalanceSync || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSyncPPOBBalance}
+                        disabled={isSyncingPPOBBalance}
+                        className="px-4 py-2.5 bg-white/10 hover:bg-white/20 active:scale-98 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer border border-white/10"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isSyncingPPOBBalance ? 'animate-spin' : ''}`} />
+                        <span>{isSyncingPPOBBalance ? 'Menyinkronkan...' : 'Sinkronkan Saldo Real-Time'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* API CREDENTIALS FORM (FOR AUTO-API MODE) */}
+                <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                        <Key className="w-4 h-4 text-[#00A876]" />
+                        Konfigurasi Kredensial API DigiFlazz / PPOB
+                      </h5>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Dapatkan username dan API key di portal resmi DigiFlazz (digiflazz.com)
+                      </p>
+                    </div>
+                    <span className="text-[11px] px-2.5 py-1 rounded-full font-bold bg-[#00A876]/10 text-[#00A876] border border-[#00A876]/20">
+                      {formData.ppobGateway?.isDevelopmentMode ? '🧪 Mode Sandbox (Testing)' : '🚀 Mode Production (Live)'}
+                    </span>
+                  </div>
+
+                  {/* Provider Selector */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          ppobGateway: {
+                            ...(formData.ppobGateway || DEFAULT_PPOB_SETTINGS),
+                            provider: 'digiflazz',
+                          },
+                        })
+                      }
+                      className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                        formData.ppobGateway?.provider === 'digiflazz'
+                          ? 'border-[#00A876] bg-emerald-50/50 dark:bg-emerald-950/20 ring-1 ring-[#00A876]'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                        <span>DigiFlazz API</span>
+                        <span className="text-[9px] px-1 bg-[#00A876] text-white rounded">#1 B2B</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Respon detik, ribuan produk pulsa, PLN &amp; e-wallet
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          ppobGateway: {
+                            ...(formData.ppobGateway || DEFAULT_PPOB_SETTINGS),
+                            provider: 'ayoconnect',
+                          },
+                        })
+                      }
+                      className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                        formData.ppobGateway?.provider === 'ayoconnect'
+                          ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/20 ring-1 ring-indigo-500'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="text-xs font-bold text-slate-900 dark:text-white">Ayoconnect / Mobilepulsa</div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Standar enterprise korporasi perbankan
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          ppobGateway: {
+                            ...(formData.ppobGateway || DEFAULT_PPOB_SETTINGS),
+                            provider: 'custom_webhook',
+                          },
+                        })
+                      }
+                      className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                        formData.ppobGateway?.provider === 'custom_webhook'
+                          ? 'border-amber-600 bg-amber-50/50 dark:bg-amber-950/20 ring-1 ring-amber-500'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="text-xs font-bold text-slate-900 dark:text-white">Custom Server API</div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Gunakan backend / webhook server sendiri
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Credentials Input */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Username DigiFlazz
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.ppobGateway?.username || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              ppobGateway: {
+                                ...(formData.ppobGateway || DEFAULT_PPOB_SETTINGS),
+                                username: e.target.value,
+                              },
+                            })
+                          }
+                          placeholder="contoh: konter_berkah_pos"
+                          className="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#00A876] outline-none"
+                        />
+                        <Users className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">Username akun terdaftar di portal DigiFlazz</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        API Key (Production / Dev Key)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPPOBApiKeyPlain ? 'text' : 'password'}
+                          value={formData.ppobGateway?.apiKey || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              ppobGateway: {
+                                ...(formData.ppobGateway || DEFAULT_PPOB_SETTINGS),
+                                apiKey: e.target.value,
+                              },
+                            })
+                          }
+                          placeholder="dev-df-xxxxxxxxxxxx"
+                          className="w-full pl-9 pr-10 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#00A876] outline-none"
+                        />
+                        <Key className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                        <button
+                          type="button"
+                          onClick={() => setShowPPOBApiKeyPlain(!showPPOBApiKeyPlain)}
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        >
+                          {showPPOBApiKeyPlain ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">Gunakan Development Key untuk testing atau Production Key untuk live</p>
+                    </div>
+                  </div>
+
+                  {/* Mode Sandbox Toggle & Fallback Checkbox */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.ppobGateway?.isDevelopmentMode ?? true}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            ppobGateway: {
+                              ...(formData.ppobGateway || DEFAULT_PPOB_SETTINGS),
+                              isDevelopmentMode: e.target.checked,
+                            },
+                          })
+                        }
+                        className="w-4 h-4 mt-0.5 text-[#00A876] rounded border-slate-300 focus:ring-[#00A876]"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                          Mode Sandbox / Testing (Simulasi Respon)
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Menguji transaksi tanpa memotong saldo deposit uang sungguhan
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.ppobGateway?.allowManualFallback ?? true}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            ppobGateway: {
+                              ...(formData.ppobGateway || DEFAULT_PPOB_SETTINGS),
+                              allowManualFallback: e.target.checked,
+                            },
+                          })
+                        }
+                        className="w-4 h-4 mt-0.5 text-[#00A876] rounded border-slate-300 focus:ring-[#00A876]"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                          Izinkan Manual Fallback Kasir
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Sediakan tombol darurat input SN manual jika server operator sedang cut-off / gangguan
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* DIAGNOSTIC TEST BUTTON & RESULTS */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleTestPPOB}
+                      disabled={testPPOBStatus?.status === 'testing'}
+                      className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-xs"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>
+                        {testPPOBStatus?.status === 'testing'
+                          ? 'Menguji Koneksi & Handshake...'
+                          : 'Uji Koneksi & Diagnostik API Server'}
+                      </span>
+                    </button>
+
+                    {testPPOBStatus && (
+                      <div
+                        className={`mt-3 p-3.5 rounded-xl border text-xs flex items-start gap-3 animate-in fade-in ${
+                          testPPOBStatus.status === 'testing'
+                            ? 'bg-amber-50 border-amber-200 text-amber-900'
+                            : testPPOBStatus.status === 'success'
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                            : 'bg-rose-50 border-rose-200 text-rose-900'
+                        }`}
+                      >
+                        {testPPOBStatus.status === 'testing' && <RefreshCw className="w-4 h-4 text-amber-600 animate-spin shrink-0 mt-0.5" />}
+                        {testPPOBStatus.status === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />}
+                        {testPPOBStatus.status === 'error' && <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />}
+                        <div className="space-y-1">
+                          <p className="font-bold">{testPPOBStatus.message}</p>
+                          {testPPOBStatus.data && (
+                            <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5 font-mono">
+                              <div>Latency: {testPPOBStatus.data.latencyMs}ms | Provider: {testPPOBStatus.data.provider}</div>
+                              <div>IP Whitelist: {testPPOBStatus.data.ipWhitelistStatus === 'whitelisted' ? '✅ Terverifikasi' : '⏳ Menunggu'}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* WEBHOOK CALLBACK & IP WHITELIST INFORMATION */}
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    <Radio className="w-4 h-4 text-[#00A876]" />
+                    URL Webhook Callback &amp; IP Server Whitelist
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Salin URL Webhook di bawah ini ke menu <strong>Pengaturan Webhook</strong> di dashboard DigiFlazz untuk menerima notifikasi status sukses/gagal transaksi secara instan:
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
+                      https://pos.averion.id/api/ppob/callback
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (navigator.clipboard) {
+                          navigator.clipboard.writeText('https://pos.averion.id/api/ppob/callback');
+                          setCopiedPPOBWebhook(true);
+                          setTimeout(() => setCopiedPPOBWebhook(false), 2000);
+                        }
+                      }}
+                      className="px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      {copiedPPOBWebhook ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-500" />}
+                      <span>{copiedPPOBWebhook ? 'Tersalin!' : 'Salin URL'}</span>
+                    </button>
                   </div>
                 </div>
               </div>
