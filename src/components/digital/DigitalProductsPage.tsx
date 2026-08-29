@@ -192,8 +192,9 @@ export const DigitalProductsPage: React.FC = () => {
   // Filter products for the POS screen
   const availableProducts = useMemo(() => {
     return digitalProducts.filter((p) => {
-      // Exclude prepaid token/vouchers from postpaid list
+      // Exclude legacy mock items & prepaid token/vouchers from postpaid list
       if (selectedCategory === 'postpaid') {
+        if (p.id.startsWith('post-') && p.buyerSkuCode !== 'sp01') return false;
         const isPrepaidVoucher = p.denomination > 0 && p.costPrice > 0 && !p.name.toLowerCase().includes('tagihan') && !p.name.toLowerCase().includes('pascabayar') && !p.name.toLowerCase().includes('speedy') && !p.name.toLowerCase().includes('indihome') && !p.name.toLowerCase().includes('bpjs') && !p.name.toLowerCase().includes('pdam');
         if (isPrepaidVoucher || p.name.toLowerCase().includes('pertagas')) return false;
       }
@@ -291,6 +292,7 @@ export const DigitalProductsPage: React.FC = () => {
   // Filtered Catalog
   const filteredCatalog = useMemo(() => {
     return digitalProducts.filter((p) => {
+      if (p.category === 'postpaid' && p.id.startsWith('post-') && p.buyerSkuCode !== 'sp01') return false;
       const matchCat = catalogCategoryFilter === 'all' || p.category === catalogCategoryFilter;
       const q = catalogSearch.toLowerCase().trim();
       const matchSearch =
