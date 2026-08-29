@@ -2,9 +2,12 @@ import { createClient, Client } from '@libsql/client';
 
 let tursoClient: Client | null = null;
 
+const DEFAULT_TURSO_URL = 'libsql://kasiready-db-imranalwi001-creator.aws-ap-northeast-1.turso.io';
+const DEFAULT_TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODc5OTc2OTMsImlkIjoiMDFhMDRjZjUtZDIwMS03ZmZmLTgzZTYtYmJiNDZhYzg1ODVmIiwia2lkIjoibkdMTmRjb3ZnUGJJc0YzM0J3cUhtOTh0SDZXTE1XSGJiVVdxYUpjajl5ayIsInJpZCI6Ijc2ZmE5ZGVhLTZlZDctNGM1My04YmRmLWY0YTRjYmE5YWY3ZiJ9.wnNhkj8_WEz9q68zDDtQCT5mSiYw0YjtDKmDQLeq3cOxmFWIe4QqvReWuVdl_j_d0gusLn0pST14yNX3LLOTBQ';
+
 export function getTursoClient(url?: string, authToken?: string): Client | null {
-  const dbUrl = url || process.env.TURSO_DATABASE_URL || process.env.VITE_TURSO_DATABASE_URL;
-  const token = authToken || process.env.TURSO_AUTH_TOKEN || process.env.VITE_TURSO_AUTH_TOKEN;
+  const dbUrl = url || process.env.TURSO_DATABASE_URL || process.env.VITE_TURSO_DATABASE_URL || DEFAULT_TURSO_URL;
+  const token = authToken || process.env.TURSO_AUTH_TOKEN || process.env.VITE_TURSO_AUTH_TOKEN || DEFAULT_TURSO_TOKEN;
 
   if (!dbUrl || !token) {
     return null;
