@@ -209,7 +209,7 @@ const STORAGE_KEYS = {
   CASHIER: 'pos_active_cashier_v2',
   CASH_SHIFTS: 'pos_cash_shifts_v2',
   CASH_EXPENSES: 'pos_cash_expenses_v2',
-  DIGITAL_PRODUCTS: 'pos_digital_products_v11_game_fixed',
+  DIGITAL_PRODUCTS: 'pos_digital_products_v12_real_digiflazz',
   DIGITAL_TRANSACTIONS: 'pos_digital_transactions_v2',
   DIGITAL_DEPOSIT: 'pos_digital_deposit_v2',
 };
@@ -431,23 +431,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [digitalProducts, setDigitalProducts] = useState<DigitalProduct[]>(() => {
     try {
       // Clean legacy cache keys
-      ['pos_digital_products', 'pos_digital_products_v2', 'pos_digital_products_v3', 'pos_digital_products_v4', 'pos_digital_products_v5', 'pos_digital_products_v6_digiflazz', 'pos_digital_products_v7_postpaid', 'pos_digital_products_v8_pasca_clean', 'pos_digital_products_v9_sp01'].forEach((k) => {
+      ['pos_digital_products', 'pos_digital_products_v2', 'pos_digital_products_v3', 'pos_digital_products_v4', 'pos_digital_products_v5', 'pos_digital_products_v6_digiflazz', 'pos_digital_products_v7_postpaid', 'pos_digital_products_v8_pasca_clean', 'pos_digital_products_v9_sp01', 'pos_digital_products_v10_game_clean', 'pos_digital_products_v11_game_fixed'].forEach((k) => {
         try { localStorage.removeItem(k); } catch {}
       });
       const stored = localStorage.getItem(STORAGE_KEYS.DIGITAL_PRODUCTS);
       if (stored) {
         const parsed: DigitalProduct[] = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length >= INITIAL_DIGITAL_PRODUCTS.length) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           const cellular = ['Telkomsel', 'Indosat Ooredoo', 'XL Axiata', 'Axis', 'Tri (3)', 'Smartfren'];
-          return parsed.map((p) => {
-            if (p.category === 'postpaid' && p.name.toLowerCase().includes('pertagas')) {
-              return { ...p, category: 'pln' };
-            }
-            if (p.category === 'game' && cellular.includes(p.provider)) {
-              return { ...p, category: 'data' };
-            }
-            return p;
-          });
+          const filtered = parsed
+            .filter((p) => !p.id.startsWith('post-') && !['post-pln', 'post-bpjs', 'post-pdam', 'post-halo', 'post-fif', 'post-pgn'].includes(p.id))
+            .map((p) => {
+              if (p.category === 'postpaid' && p.name.toLowerCase().includes('pertagas')) {
+                return { ...p, category: 'pln' };
+              }
+              if (p.category === 'game' && cellular.includes(p.provider)) {
+                return { ...p, category: 'data' };
+              }
+              return p;
+            });
+          if (filtered.length > 0) return filtered;
         }
       }
       localStorage.setItem(STORAGE_KEYS.DIGITAL_PRODUCTS, JSON.stringify(INITIAL_DIGITAL_PRODUCTS));
